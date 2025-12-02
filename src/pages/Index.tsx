@@ -83,10 +83,10 @@ const Index = () => {
 
   const fetchDespesas = async () => {
     if (!userId) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const [cartaoResult, debitoResult] = await Promise.all([
         supabase.from("Financeiro Cartão").select("*").eq('user_id', userId),
@@ -99,13 +99,7 @@ const Index = () => {
       const todasDespesas = [
         ...(cartaoResult.data || []),
         ...(debitoResult.data || []),
-      ].sort((a, b) => {
-        const dataA = brToDate(a.Data);
-        const dataB = brToDate(b.Data);
-        const diffData = dataB.getTime() - dataA.getTime();
-        if (diffData !== 0) return diffData;
-        return (b.id || 0) - (a.id || 0);
-      });
+      ].sort((a, b) => (b.id || 0) - (a.id || 0));
 
       setDespesas(todasDespesas);
       toast({
@@ -141,7 +135,15 @@ const Index = () => {
       if (error && error.code !== "PGRST116") throw error;
 
       if (data) {
-        // Calcula as datas baseado na configuração
+        // Se tiver as novas colunas de data, usa elas
+        if (data.data_inicio && data.data_fim) {
+          return {
+            dataInicio: data.data_inicio,
+            dataFim: data.data_fim
+          };
+        }
+
+        // Fallback para lógica antiga
         const mesInicio = mesRef + data.mes_inicio_offset;
         const anoInicio = mesInicio < 1 ? anoAtual - 1 : anoAtual;
         const mesInicioAjustado = mesInicio < 1 ? 12 : mesInicio;
@@ -158,19 +160,18 @@ const Index = () => {
         const primeiroDia = new Date(anoAtual, mesRef - 1, 1);
         const ultimoDia = new Date(anoAtual, mesRef, 0);
         return {
-          dataInicio: primeiroDia.toISOString().split('T')[0],
-          dataFim: ultimoDia.toISOString().split('T')[0]
+          dataInicio: format(primeiroDia, "yyyy-MM-dd"),
+          dataFim: format(ultimoDia, "yyyy-MM-dd")
         };
       }
     } catch (error: any) {
       console.error("Erro ao calcular período:", error);
       // Fallback: usa mês especificado completo
-      const hoje = new Date();
-      const primeiroDia = new Date(hoje.getFullYear(), mesRef - 1, 1);
-      const ultimoDia = new Date(hoje.getFullYear(), mesRef, 0);
+      const primeiroDia = new Date(new Date().getFullYear(), mesRef - 1, 1);
+      const ultimoDia = new Date(new Date().getFullYear(), mesRef, 0);
       return {
-        dataInicio: primeiroDia.toISOString().split('T')[0],
-        dataFim: ultimoDia.toISOString().split('T')[0]
+        dataInicio: format(primeiroDia, "yyyy-MM-dd"),
+        dataFim: format(ultimoDia, "yyyy-MM-dd")
       };
     }
   };
@@ -179,7 +180,7 @@ const Index = () => {
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
     const anoAtual = hoje.getFullYear();
-    
+
     try {
       // Busca todos os períodos configurados
       const { data: periodos, error } = await supabase
@@ -199,7 +200,7 @@ const Index = () => {
 
           const dataInicio = new Date(anoInicio, mesInicioAjustado - 1, periodo.dia_inicio);
           dataInicio.setHours(0, 0, 0, 0);
-          
+
           const dataFim = new Date(anoAtual, periodo.mes_referencia - 1, periodo.dia_fim);
           dataFim.setHours(23, 59, 59, 999);
 
@@ -211,13 +212,13 @@ const Index = () => {
           }
         }
       }
-      
+
       // Fallback: usa mês atual completo
       const mesAtual = hoje.getMonth() + 1;
       const periodo = await calcularPeriodoDoMes(uid, mesAtual);
       setDataInicioCartao(periodo.dataInicio);
       setDataFimCartao(periodo.dataFim);
-      
+
     } catch (error) {
       console.error("Erro ao calcular período:", error);
       // Fallback: usa mês atual completo
@@ -230,14 +231,14 @@ const Index = () => {
 
   const loadUserProfile = async (uid: string) => {
     await calcularPeriodoAtualDoCartao(uid);
-    
+
     // Buscar nome do usuário do perfil
     const { data: profile } = await supabase
       .from("profiles")
       .select("nome")
       .eq("id", uid)
       .single();
-    
+
     if (profile?.nome) {
       setUserName(profile.nome);
     }
@@ -247,7 +248,7 @@ const Index = () => {
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
     const anoAtual = hoje.getFullYear();
-    
+
     try {
       // Busca todos os períodos configurados
       const { data: periodos, error } = await supabase
@@ -267,7 +268,7 @@ const Index = () => {
 
           const dataInicio = new Date(anoInicio, mesInicioAjustado - 1, periodo.dia_inicio);
           dataInicio.setHours(0, 0, 0, 0);
-          
+
           const dataFim = new Date(anoAtual, periodo.mes_referencia - 1, periodo.dia_fim);
           dataFim.setHours(23, 59, 59, 999);
 
@@ -275,17 +276,18 @@ const Index = () => {
           if (hoje >= dataInicio && hoje <= dataFim) {
             setDataInicio(dataInicio.toISOString().split('T')[0]);
             setDataFim(dataFim.toISOString().split('T')[0]);
+            setMesSelecionado(periodo.mes_referencia);
             return;
           }
         }
       }
-      
+
       // Fallback: usa mês atual completo se nenhum período estiver ativo
       const mesAtual = hoje.getMonth() + 1;
       const periodo = await calcularPeriodoDoMes(uid, mesAtual);
       setDataInicio(periodo.dataInicio);
       setDataFim(periodo.dataFim);
-      
+
     } catch (error) {
       console.error("Erro ao aplicar filtros:", error);
       // Fallback: usa mês atual completo
@@ -328,7 +330,7 @@ const Index = () => {
 
   const fetchPeriodosMensais = async () => {
     if (!userId) return;
-    
+
     try {
       const { data, error } = await supabase
         .from("periodos_mensais_cartao")
@@ -366,32 +368,58 @@ const Index = () => {
       if (!parcelaFilter.includes(totalParcelas)) return false;
     }
 
-    // Filtro de data - aplicado para TODOS os tipos
+    // Filtro de Data
     const despesaDate = brToDate(despesa.Data);
-    
-    let passaDataInicio = true;
-    if (dataInicio) {
-      const dataInicioDate = inputToDate(dataInicio);
-      dataInicioDate.setHours(0, 0, 0, 0);
-      passaDataInicio = despesaDate >= dataInicioDate;
-    }
-    
-    let passaDataFim = true;
-    if (dataFim) {
-      const dataFimDate = inputToDate(dataFim);
-      dataFimDate.setHours(23, 59, 59, 999);
-      passaDataFim = despesaDate <= dataFimDate;
+
+    // Lógica diferenciada por tipo
+    if (despesa.Tipo === "Crédito") {
+      // Cartão segue o período configurado (dataInicio/dataFim)
+      if (dataInicio) {
+        const dataInicioDate = inputToDate(dataInicio);
+        dataInicioDate.setHours(0, 0, 0, 0);
+        if (despesaDate < dataInicioDate) return false;
+      }
+      if (dataFim) {
+        const dataFimDate = inputToDate(dataFim);
+        dataFimDate.setHours(23, 59, 59, 999);
+        if (despesaDate > dataFimDate) return false;
+      }
+    } else {
+      // Débito/Pix/Dinheiro
+      if (mesSelecionado) {
+        // Se tem mês selecionado, usa o mês civil (01 a 30/31)
+        const anoRef = dataInicio ? inputToDate(dataInicio).getFullYear() : new Date().getFullYear();
+        const inicioMes = new Date(anoRef, mesSelecionado - 1, 1);
+        inicioMes.setHours(0, 0, 0, 0);
+
+        const fimMes = new Date(anoRef, mesSelecionado, 0);
+        fimMes.setHours(23, 59, 59, 999);
+
+        if (despesaDate < inicioMes || despesaDate > fimMes) return false;
+      } else {
+        // Se não tem mês selecionado (filtro manual), segue as datas do filtro
+        if (dataInicio) {
+          const dataInicioDate = inputToDate(dataInicio);
+          dataInicioDate.setHours(0, 0, 0, 0);
+          if (despesaDate < dataInicioDate) return false;
+        }
+        if (dataFim) {
+          const dataFimDate = inputToDate(dataFim);
+          dataFimDate.setHours(23, 59, 59, 999);
+          if (despesaDate > dataFimDate) return false;
+        }
+      }
     }
 
-    return passaDataInicio && passaDataFim;
+    return true;
   });
 
   const handleAddOrUpdate = async (despesa: Omit<Despesa, "id"> & { id?: number }) => {
     if (!userId) return;
-    
+
     try {
       const tableName = despesa.Tipo === "Débito" ? "Financeiro Debito" : "Financeiro Cartão";
-      
+
       if (despesa.id) {
         const { error } = await supabase
           .from(tableName)
@@ -412,17 +440,17 @@ const Index = () => {
         // Verificar se há parcelas
         const parcelasMatch = despesa.Parcelas?.match(/(\d+)x?/i);
         const numeroParcelas = parcelasMatch ? parseInt(parcelasMatch[1]) : 1;
-        
+
         if (numeroParcelas > 1) {
           // Criar múltiplas despesas parceladas
           const valorParcela = despesa.valor / numeroParcelas;
           const dataInicial = brToDate(despesa.Data);
           const despesasParceladas = [];
-          
+
           for (let i = 0; i < numeroParcelas; i++) {
             const dataParcelaDate = addMonths(dataInicial, i);
             const dataParcela = format(dataParcelaDate, "dd/MM/yyyy");
-            
+
             despesasParceladas.push({
               Responsavel: despesa.Responsavel,
               Tipo: despesa.Tipo,
@@ -434,7 +462,7 @@ const Index = () => {
               user_id: userId
             });
           }
-          
+
           const { error } = await supabase
             .from(tableName)
             .insert(despesasParceladas);
@@ -474,10 +502,10 @@ const Index = () => {
 
   const handleDuplicate = async (despesa: Despesa) => {
     if (!userId) return;
-    
+
     try {
       const tableName = despesa.Tipo === "Débito" ? "Financeiro Debito" : "Financeiro Cartão";
-      
+
       const { error } = await supabase
         .from(tableName)
         .insert([{
@@ -492,7 +520,7 @@ const Index = () => {
         }]);
 
       if (error) throw error;
-      
+
       toast({ title: "Despesa duplicada com sucesso!" });
       fetchDespesas();
     } catch (error: any) {
@@ -563,14 +591,14 @@ const Index = () => {
 
   const handleSelecionarMes = async (mes: number) => {
     if (!userId) return;
-    
+
     const periodo = await calcularPeriodoDoMes(userId, mes);
     setDataInicioCartao(periodo.dataInicio);
     setDataFimCartao(periodo.dataFim);
     setTipoFilter("Crédito");
     setMesSelecionado(mes);
     setRegistrosMostrados(10);
-    
+
     toast({
       title: "Mês selecionado",
       description: `Mostrando despesas de cartão do período configurado.`,
@@ -622,8 +650,8 @@ const Index = () => {
               <span className="hidden sm:inline">Nova Despesa</span>
               <span className="sm:hidden">Nova</span>
             </Button>
-            <ExportButton 
-              despesas={despesasFiltradas} 
+            <ExportButton
+              despesas={despesasFiltradas}
               filtrosAtivos={{
                 responsavel: responsavelFilter,
                 tipo: tipoFilter,
@@ -654,16 +682,16 @@ const Index = () => {
                     Filtrar por Mês do Cartão
                   </DropdownMenuSubTrigger>
                   <DropdownMenuSubContent>
-                    {["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", 
+                    {["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
                       "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"].map((mes, idx) => (
-                      <DropdownMenuItem 
-                        key={idx} 
-                        onClick={() => handleSelecionarMes(idx + 1)}
-                        className={mesSelecionado === idx + 1 ? "bg-accent" : ""}
-                      >
-                        {mes}
-                      </DropdownMenuItem>
-                    ))}
+                        <DropdownMenuItem
+                          key={idx}
+                          onClick={() => handleSelecionarMes(idx + 1)}
+                          className={mesSelecionado === idx + 1 ? "bg-accent" : ""}
+                        >
+                          {mes}
+                        </DropdownMenuItem>
+                      ))}
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
               </DropdownMenuContent>
@@ -713,6 +741,7 @@ const Index = () => {
           setDataInicio={setDataInicio}
           dataFim={dataFim}
           setDataFim={setDataFim}
+          onMesSelecionado={setMesSelecionado}
           categorias={[...new Set(despesas.map(d => d.Categoria).filter(Boolean))]}
           responsaveis={[...new Set(despesas.map(d => d.Responsavel).filter(Boolean))]}
           periodosMensais={periodosMensais}
@@ -732,8 +761,8 @@ const Index = () => {
 
         {temMaisDespesas && (
           <div className="flex justify-center mt-4">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setRegistrosMostrados(prev => prev + 10)}
               className="min-w-[200px]"
             >

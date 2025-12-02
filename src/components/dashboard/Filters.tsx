@@ -22,6 +22,7 @@ interface FiltersProps {
   setDataInicio: (value: string) => void;
   dataFim: string;
   setDataFim: (value: string) => void;
+  onMesSelecionado?: (mes: number | null) => void;
   categorias: string[];
   responsaveis: string[];
   periodosMensais: any[];
@@ -41,6 +42,7 @@ export const Filters = ({
   setDataInicio,
   dataFim,
   setDataFim,
+  onMesSelecionado,
   categorias,
   responsaveis,
   periodosMensais,
@@ -73,24 +75,36 @@ export const Filters = ({
     if (!periodoId) {
       setDataInicio("");
       setDataFim("");
+      if (onMesSelecionado) onMesSelecionado(null);
       return;
     }
-    
+
     const periodo = periodosMensais.find(p => p.id.toString() === periodoId);
     if (!periodo) return;
-    
+
+    // Se tiver as novas colunas de data, usa elas
+    if (periodo.data_inicio && periodo.data_fim) {
+      setDataInicio(periodo.data_inicio);
+      setDataFim(periodo.data_fim);
+      if (onMesSelecionado) onMesSelecionado(periodo.mes_referencia);
+      return;
+    }
+
+    // Fallback para o sistema antigo (caso a migração não tenha rodado ainda)
     const anoAtual = new Date().getFullYear();
     const mesRef = periodo.mes_referencia;
-    
+
+    if (onMesSelecionado) onMesSelecionado(mesRef);
+
     // Calcula a data de início
     const mesInicio = periodo.mes_inicio_offset === -1 ? mesRef - 1 : mesRef;
     const anoInicio = mesInicio < 1 ? anoAtual - 1 : anoAtual;
     const mesInicioAjustado = mesInicio < 1 ? 12 : mesInicio;
     const dataInicioCalculada = new Date(anoInicio, mesInicioAjustado - 1, periodo.dia_inicio);
-    
+
     // Calcula a data de fim (sempre no mês de referência)
     const dataFimCalculada = new Date(anoAtual, mesRef - 1, periodo.dia_fim);
-    
+
     setDataInicio(format(dataInicioCalculada, "yyyy-MM-dd"));
     setDataFim(format(dataFimCalculada, "yyyy-MM-dd"));
   };
@@ -178,12 +192,12 @@ export const Filters = ({
             </Label>
             <Popover>
               <PopoverTrigger asChild>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="w-full justify-start bg-secondary border-border text-card-foreground"
                 >
-                  {parcelaFilter.length === 0 
-                    ? "Selecionar parcelas" 
+                  {parcelaFilter.length === 0
+                    ? "Selecionar parcelas"
                     : `${parcelaFilter.length} selecionada(s)`}
                 </Button>
               </PopoverTrigger>
@@ -224,11 +238,13 @@ export const Filters = ({
                     Configure os períodos primeiro
                   </SelectItem>
                 ) : (
-                  periodosMensais.map((periodo) => (
-                    <SelectItem key={periodo.id} value={periodo.id.toString()}>
-                      {MESES[periodo.mes_referencia - 1]}
-                    </SelectItem>
-                  ))
+                  periodosMensais
+                    .sort((a, b) => a.mes_referencia - b.mes_referencia)
+                    .map((periodo) => (
+                      <SelectItem key={periodo.id} value={periodo.id.toString()}>
+                        {periodo.nome_periodo || MESES[periodo.mes_referencia - 1]}
+                      </SelectItem>
+                    ))
                 )}
               </SelectContent>
             </Select>

@@ -1,0 +1,40 @@
+// CORREÇÃO MANUAL NECESSÁRIA
+// Arquivo: src/components/dashboard/Filters.tsx
+// Linhas: 82-95
+
+// SUBSTITUIR ESTAS LINHAS (82-95):
+    const anoAtual = new Date().getFullYear();
+    const mesRef = periodo.mes_referencia;
+    
+    // Calcula a data de início
+    const mesInicio = periodo.mes_inicio_offset === -1 ? mesRef - 1 : mesRef;
+    const anoInicio = mesInicio < 1 ? anoAtual - 1 : anoAtual;
+    const mesInicioAjustado = mesInicio < 1 ? 12 : mesInicio;
+    const dataInicioCalculada = new Date(anoInicio, mesInicioAjustado - 1, periodo.dia_inicio);
+    
+    // Calcula a data de fim (sempre no mês de referência)
+    const dataFimCalculada = new Date(anoAtual, mesRef - 1, periodo.dia_fim);
+    
+    setDataInicio(format(dataInicioCalculada, "yyyy-MM-dd"));
+    setDataFim(format(dataFimCalculada, "yyyy-MM-dd"));
+
+// POR ESTAS LINHAS:
+    // Usa as datas completas diretamente do período
+    setDataInicio(periodo.data_inicio);
+    setDataFim(periodo.data_fim);
+
+// RESULTADO FINAL DA FUNÇÃO handleMesAnoChange (linhas 72-96):
+  const handleMesAnoChange = (periodoId: string) => {
+    if (!periodoId) {
+      setDataInicio("");
+      setDataFim("");
+      return;
+    }
+    
+    const periodo = periodosMensais.find(p => p.id.toString() === periodoId);
+    if (!periodo) return;
+    
+    // Usa as datas completas diretamente do período
+    setDataInicio(periodo.data_inicio);
+    setDataFim(periodo.data_fim);
+  };
