@@ -6,7 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { ResponsavelFilter, TipoFilter } from "@/types/despesa";
-import { Filter, User, CreditCard, Tag, Calendar } from "lucide-react";
+import { Filter, User, CreditCard, Tag, Calendar, X } from "lucide-react";
 import { format } from "date-fns";
 
 interface FiltersProps {
@@ -27,6 +27,7 @@ interface FiltersProps {
   responsaveis: string[];
   periodosMensais: any[];
   userId: string;
+  onClearFilters: () => void;
 }
 
 export const Filters = ({
@@ -47,6 +48,7 @@ export const Filters = ({
   responsaveis,
   periodosMensais,
   userId,
+  onClearFilters,
 }: FiltersProps) => {
   const opcoesParcelamento = [
     { value: "1", label: "A vista" },
@@ -117,9 +119,15 @@ export const Filters = ({
   return (
     <Card className="bg-card border-border shadow-sm">
       <CardContent className="pt-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Filter className="h-5 w-5 text-primary" />
-          <h3 className="text-lg font-semibold text-card-foreground">Filtros</h3>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Filter className="h-5 w-5 text-primary" />
+            <h3 className="text-lg font-semibold text-card-foreground">Filtros</h3>
+          </div>
+          <Button variant="ghost" size="sm" onClick={onClearFilters} className="text-muted-foreground hover:text-destructive">
+            <X className="mr-2 h-4 w-4" />
+            Limpar Filtros
+          </Button>
         </div>
         <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-7">
           <div className="space-y-2">

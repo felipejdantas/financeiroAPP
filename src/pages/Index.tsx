@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Despesa, ResponsavelFilter, TipoFilter } from "@/types/despesa";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, AlertCircle, Plus, LogOut, X, Trash2, MoreVertical, BarChart3, Filter } from "lucide-react";
+import { RefreshCw, AlertCircle, Plus, LogOut, Trash2, MoreVertical, BarChart3, Filter } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -706,11 +706,6 @@ const Index = () => {
               <span className="hidden sm:inline">{showFilters ? "Ocultar Filtros" : "Mostrar Filtros"}</span>
               <span className="sm:hidden">Filtros</span>
             </Button>
-            <Button variant="outline" onClick={limparFiltros} className="flex-1 sm:flex-none">
-              <X className="mr-2 h-4 w-4" />
-              <span className="hidden sm:inline">Limpar Filtros</span>
-              <span className="sm:hidden">Limpar</span>
-            </Button>
             <Button variant="outline" onClick={fetchDespesas} size="icon" className="shrink-0">
               <RefreshCw className="h-4 w-4" />
             </Button>
@@ -757,6 +752,7 @@ const Index = () => {
             responsaveis={[...new Set(despesas.map(d => d.Responsavel).filter(Boolean))]}
             periodosMensais={periodosMensais}
             userId={userId || ""}
+            onClearFilters={limparFiltros}
           />
         )}
 
