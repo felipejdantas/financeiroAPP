@@ -52,9 +52,25 @@ export const ExportButton = ({ despesas, filtrosAtivos }: ExportButtonProps) => 
         return;
       }
 
+      // Ordenar despesas por data (mais recente para mais antiga)
+      const parseDate = (dateStr: string) => {
+        if (!dateStr) return new Date(0);
+        const [day, month, year] = dateStr.split('/').map(Number);
+        return new Date(year, month - 1, day);
+      };
+
+      const despesasOrdenadas = [...despesas].sort((a, b) => {
+        const dateA = parseDate(a.Data);
+        const dateB = parseDate(b.Data);
+        return dateB.getTime() - dateA.getTime();
+      });
+
+      // Usar despesasOrdenadas para o resto da função
+      const despesasParaExportar = despesasOrdenadas;
+
       if (groupBy === "todas") {
         // Exportar todas as despesas sem agrupamento
-        const tableData = despesas.map(d => [
+        const tableData = despesasParaExportar.map(d => [
           d.Data || "-",
           d.Descrição || "-",
           d.Responsavel || "-",
@@ -73,13 +89,13 @@ export const ExportButton = ({ despesas, filtrosAtivos }: ExportButtonProps) => 
         });
 
         // Total
-        const total = despesas.reduce((sum, d) => sum + (d.valor || 0), 0);
+        const total = despesasParaExportar.reduce((sum, d) => sum + (d.valor || 0), 0);
         const finalY = (doc as any).lastAutoTable?.finalY || yPos + 10;
         doc.setFontSize(12);
         doc.text(`Total: R$ ${total.toFixed(2)}`, 14, finalY + 10);
 
       } else if (groupBy === "usuario") {
-        const grouped = despesas.reduce((acc, d) => {
+        const grouped = despesasParaExportar.reduce((acc, d) => {
           const resp = d.Responsavel || "Sem responsável";
           if (!acc[resp]) acc[resp] = [];
           acc[resp].push(d);
@@ -123,7 +139,7 @@ export const ExportButton = ({ despesas, filtrosAtivos }: ExportButtonProps) => 
         });
 
       } else if (groupBy === "tipo") {
-        const grouped = despesas.reduce((acc, d) => {
+        const grouped = despesasParaExportar.reduce((acc, d) => {
           const tipo = d.Tipo || "Outros";
           if (!acc[tipo]) acc[tipo] = [];
           acc[tipo].push(d);
@@ -166,7 +182,7 @@ export const ExportButton = ({ despesas, filtrosAtivos }: ExportButtonProps) => 
         });
 
       } else if (groupBy === "categoria") {
-        const grouped = despesas.reduce((acc, d) => {
+        const grouped = despesasParaExportar.reduce((acc, d) => {
           const cat = d.Categoria || "Sem categoria";
           if (!acc[cat]) acc[cat] = [];
           acc[cat].push(d);
@@ -209,7 +225,7 @@ export const ExportButton = ({ despesas, filtrosAtivos }: ExportButtonProps) => 
         });
 
       } else if (groupBy === "data") {
-        const grouped = despesas.reduce((acc, d) => {
+        const grouped = despesasParaExportar.reduce((acc, d) => {
           const mes = d.Data ? d.Data.substring(3) : "Data inválida"; // MM/YYYY
           if (!acc[mes]) acc[mes] = [];
           acc[mes].push(d);

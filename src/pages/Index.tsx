@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Despesa, ResponsavelFilter, TipoFilter } from "@/types/despesa";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, AlertCircle, Plus, LogOut, X, Trash2, MoreVertical, BarChart3 } from "lucide-react";
+import { RefreshCw, AlertCircle, Plus, LogOut, X, Trash2, MoreVertical, BarChart3, Filter } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -80,6 +80,7 @@ const Index = () => {
   const [mesSelecionado, setMesSelecionado] = useState<number | null>(null);
   const [periodosMensais, setPeriodosMensais] = useState<any[]>([]);
   const [graficosOpen, setGraficosOpen] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   const fetchDespesas = async () => {
     if (!userId) return;
@@ -696,6 +697,15 @@ const Index = () => {
                 </DropdownMenuSub>
               </DropdownMenuContent>
             </DropdownMenu>
+            <Button
+              variant={showFilters ? "secondary" : "outline"}
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex-1 sm:flex-none"
+            >
+              <Filter className="mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">{showFilters ? "Ocultar Filtros" : "Mostrar Filtros"}</span>
+              <span className="sm:hidden">Filtros</span>
+            </Button>
             <Button variant="outline" onClick={limparFiltros} className="flex-1 sm:flex-none">
               <X className="mr-2 h-4 w-4" />
               <span className="hidden sm:inline">Limpar Filtros</span>
@@ -728,25 +738,27 @@ const Index = () => {
           </Alert>
         )}
 
-        <Filters
-          responsavelFilter={responsavelFilter}
-          setResponsavelFilter={setResponsavelFilter}
-          tipoFilter={tipoFilter}
-          setTipoFilter={setTipoFilter}
-          categoriaFilter={categoriaFilter}
-          setCategoriaFilter={setCategoriaFilter}
-          parcelaFilter={parcelaFilter}
-          setParcelaFilter={setParcelaFilter}
-          dataInicio={dataInicio}
-          setDataInicio={setDataInicio}
-          dataFim={dataFim}
-          setDataFim={setDataFim}
-          onMesSelecionado={setMesSelecionado}
-          categorias={[...new Set(despesas.map(d => d.Categoria).filter(Boolean))]}
-          responsaveis={[...new Set(despesas.map(d => d.Responsavel).filter(Boolean))]}
-          periodosMensais={periodosMensais}
-          userId={userId || ""}
-        />
+        {showFilters && (
+          <Filters
+            responsavelFilter={responsavelFilter}
+            setResponsavelFilter={setResponsavelFilter}
+            tipoFilter={tipoFilter}
+            setTipoFilter={setTipoFilter}
+            categoriaFilter={categoriaFilter}
+            setCategoriaFilter={setCategoriaFilter}
+            parcelaFilter={parcelaFilter}
+            setParcelaFilter={setParcelaFilter}
+            dataInicio={dataInicio}
+            setDataInicio={setDataInicio}
+            dataFim={dataFim}
+            setDataFim={setDataFim}
+            onMesSelecionado={setMesSelecionado}
+            categorias={[...new Set(despesas.map(d => d.Categoria).filter(Boolean))]}
+            responsaveis={[...new Set(despesas.map(d => d.Responsavel).filter(Boolean))]}
+            periodosMensais={periodosMensais}
+            userId={userId || ""}
+          />
+        )}
 
         <SummaryCards despesas={despesasFiltradas} />
 
