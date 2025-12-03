@@ -23,6 +23,8 @@ interface FiltersProps {
   dataFim: string;
   setDataFim: (value: string) => void;
   onMesSelecionado?: (mes: number | null) => void;
+  anoSelecionado?: number;
+  setAnoSelecionado?: (ano: number) => void;
   categorias: string[];
   responsaveis: string[];
   periodosMensais: any[];
@@ -44,6 +46,8 @@ export const Filters = ({
   dataFim,
   setDataFim,
   onMesSelecionado,
+  anoSelecionado,
+  setAnoSelecionado,
   categorias,
   responsaveis,
   periodosMensais,
@@ -64,6 +68,8 @@ export const Filters = ({
     { value: "11", label: "11x" },
     { value: "12", label: "12x" },
   ];
+
+  const ANOS = [2025, 2026, 2027, 2028];
 
   const handleParcelaToggle = (value: string) => {
     if (parcelaFilter.includes(value)) {
@@ -116,6 +122,12 @@ export const Filters = ({
     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
   ];
 
+  // Filtra períodos pelo ano selecionado se disponível
+  const periodosFiltrados = periodosMensais.filter(p => {
+    if (!anoSelecionado) return true;
+    return p.ano_referencia === anoSelecionado;
+  }).sort((a, b) => a.mes_referencia - b.mes_referencia);
+
   return (
     <Card className="bg-card border-border shadow-sm">
       <CardContent className="pt-6">
@@ -129,7 +141,59 @@ export const Filters = ({
             Limpar Filtros
           </Button>
         </div>
-        <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-7">
+
+        {/* Grid ajustado para melhor distribuição */}
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+
+          {/* Ano (Novo) */}
+          {anoSelecionado && setAnoSelecionado && (
+            <div className="space-y-2">
+              <Label htmlFor="ano" className="text-card-foreground flex items-center gap-1">
+                <Calendar className="h-4 w-4" />
+                Ano
+              </Label>
+              <Select
+                value={anoSelecionado.toString()}
+                onValueChange={(val) => setAnoSelecionado(parseInt(val))}
+              >
+                <SelectTrigger id="ano" className="bg-secondary border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border-border">
+                  {ANOS.map((ano) => (
+                    <SelectItem key={ano} value={ano.toString()}>{ano}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Período Mensal */}
+          <div className="space-y-2">
+            <Label htmlFor="periodoMensal" className="text-card-foreground flex items-center gap-1">
+              <Calendar className="h-4 w-4" />
+              Período Mensal
+            </Label>
+            <Select onValueChange={handleMesAnoChange}>
+              <SelectTrigger id="periodoMensal" className="bg-secondary border-border">
+                <SelectValue placeholder="Selecione um período" />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border-border">
+                {periodosFiltrados.length === 0 ? (
+                  <SelectItem value="vazio" disabled>
+                    {anoSelecionado ? `Sem períodos para ${anoSelecionado}` : "Configure os períodos primeiro"}
+                  </SelectItem>
+                ) : (
+                  periodosFiltrados.map((periodo) => (
+                    <SelectItem key={periodo.id} value={periodo.id.toString()}>
+                      {periodo.nome_periodo || MESES[periodo.mes_referencia - 1]}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="responsavel" className="text-card-foreground flex items-center gap-1">
               <User className="h-4 w-4" />
@@ -229,33 +293,6 @@ export const Filters = ({
                 </div>
               </PopoverContent>
             </Popover>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="periodoMensal" className="text-card-foreground flex items-center gap-1">
-              <Calendar className="h-4 w-4" />
-              Período Mensal
-            </Label>
-            <Select onValueChange={handleMesAnoChange}>
-              <SelectTrigger id="periodoMensal" className="bg-secondary border-border">
-                <SelectValue placeholder="Selecione um período" />
-              </SelectTrigger>
-              <SelectContent className="bg-popover border-border">
-                {periodosMensais.length === 0 ? (
-                  <SelectItem value="vazio" disabled>
-                    Configure os períodos primeiro
-                  </SelectItem>
-                ) : (
-                  periodosMensais
-                    .sort((a, b) => a.mes_referencia - b.mes_referencia)
-                    .map((periodo) => (
-                      <SelectItem key={periodo.id} value={periodo.id.toString()}>
-                        {periodo.nome_periodo || MESES[periodo.mes_referencia - 1]}
-                      </SelectItem>
-                    ))
-                )}
-              </SelectContent>
-            </Select>
           </div>
 
           <div className="space-y-2">

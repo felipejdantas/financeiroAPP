@@ -3,28 +3,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Despesa, ResponsavelFilter, TipoFilter } from "@/types/despesa";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, AlertCircle, Plus, LogOut, Trash2, MoreVertical, BarChart3, Filter, X } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
-} from "@/components/ui/dropdown-menu";
+import { RefreshCw, AlertCircle, Plus, ChevronLeft, ChevronRight, Calendar } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SummaryCards } from "@/components/dashboard/SummaryCards";
 import { CategoryCharts } from "@/components/dashboard/CategoryCharts";
 import { DespesasTable } from "@/components/dashboard/DespesasTable";
-import { Filters } from "@/components/dashboard/Filters";
-import { ExportButton } from "@/components/dashboard/ExportButton";
 import { DespesaForm } from "@/components/dashboard/DespesaForm";
+import { Filters } from "@/components/dashboard/Filters";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { PeriodoFaturamentoConfig } from "@/components/dashboard/PeriodoFaturamentoConfig";
-import { PeriodosMensaisManager } from "@/components/dashboard/PeriodosMensaisManager";
-import { GraficosComparativos } from "@/components/dashboard/GraficosComparativos";
 import { format, addMonths } from "date-fns";
 
 // Funções utilitárias para conversão de datas
@@ -53,7 +41,7 @@ const getTotalParcelas = (parcelas: string): string | null => {
   return numero.toString();
 };
 
-const Index = () => {
+const Dashboard = () => {
   const navigate = useNavigate();
   const [userId, setUserId] = useState<string | null>(null);
   const [userName, setUserName] = useState<string>("");
@@ -74,13 +62,21 @@ const Index = () => {
   const [editingDespesa, setEditingDespesa] = useState<Despesa | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [despesaToDelete, setDespesaToDelete] = useState<number | null>(null);
-  const [configMesesOpen, setConfigMesesOpen] = useState(false);
-  const [periodoCartaoOpen, setPeriodoCartaoOpen] = useState(false);
   const [registrosMostrados, setRegistrosMostrados] = useState(10);
   const [mesSelecionado, setMesSelecionado] = useState<number | null>(null);
+  const [anoSelecionado, setAnoSelecionado] = useState(new Date().getFullYear());
   const [periodosMensais, setPeriodosMensais] = useState<any[]>([]);
-  const [graficosOpen, setGraficosOpen] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
+  const [currentMonthIndex, setCurrentMonthIndex] = useState(new Date().getMonth()); // 0-11
+  const [activeSummaryFilter, setActiveSummaryFilter] = useState<{ type: string; value?: string } | null>(null);
+
+  const handleSummaryFilterChange = (type: string, value?: string) => {
+    if (type === "total") {
+      setActiveSummaryFilter(null);
+    } else {
+      setActiveSummaryFilter({ type, value });
+    }
+    setRegistrosMostrados(10); // Reset pagination when filter changes
+  };
 
   const fetchDespesas = async () => {
     if (!userId) return;
@@ -120,17 +116,17 @@ const Index = () => {
     }
   };
 
-  const calcularPeriodoDoMes = async (uid: string, mesRef: number): Promise<{ dataInicio: string, dataFim: string }> => {
+  const calcularPeriodoDoMes = async (uid: string, mesRef: number, anoRef?: number): Promise<{ dataInicio: string, dataFim: string }> => {
     try {
-      const hoje = new Date();
-      const anoAtual = hoje.getFullYear();
+      const anoUsar = anoRef || anoSelecionado;
 
-      // Busca o período configurado para o mês especificado
+      // Busca o período configurado para o mês e ano especificados
       const { data, error } = await supabase
         .from("periodos_mensais_cartao")
         .select("*")
         .eq("user_id", uid)
         .eq("mes_referencia", mesRef)
+        .eq("ano_referencia", anoUsar)
         .maybeSingle();
 
       if (error && error.code !== "PGRST116") throw error;
@@ -145,12 +141,12 @@ const Index = () => {
         }
 
         // Fallback para lógica antiga
-        const mesInicio = mesRef + data.mes_inicio_offset;
-        const anoInicio = mesInicio < 1 ? anoAtual - 1 : anoAtual;
+        const mesInicio = mesRef + (data.mes_inicio_offset || 0);
+        const anoInicio = mesInicio < 1 ? anoUsar - 1 : anoUsar;
         const mesInicioAjustado = mesInicio < 1 ? 12 : mesInicio;
 
         const dataInicio = new Date(anoInicio, mesInicioAjustado - 1, data.dia_inicio);
-        const dataFim = new Date(anoAtual, mesRef - 1, data.dia_fim);
+        const dataFim = new Date(anoUsar, mesRef - 1, data.dia_fim);
 
         return {
           dataInicio: dataInicio.toISOString().split('T')[0],
@@ -158,8 +154,8 @@ const Index = () => {
         };
       } else {
         // Padrão: mês completo especificado
-        const primeiroDia = new Date(anoAtual, mesRef - 1, 1);
-        const ultimoDia = new Date(anoAtual, mesRef, 0);
+        const primeiroDia = new Date(anoUsar, mesRef - 1, 1);
+        const ultimoDia = new Date(anoUsar, mesRef, 0);
         return {
           dataInicio: format(primeiroDia, "yyyy-MM-dd"),
           dataFim: format(ultimoDia, "yyyy-MM-dd")
@@ -168,8 +164,9 @@ const Index = () => {
     } catch (error: any) {
       console.error("Erro ao calcular período:", error);
       // Fallback: usa mês especificado completo
-      const primeiroDia = new Date(new Date().getFullYear(), mesRef - 1, 1);
-      const ultimoDia = new Date(new Date().getFullYear(), mesRef, 0);
+      const anoUsar = anoRef || new Date().getFullYear();
+      const primeiroDia = new Date(anoUsar, mesRef - 1, 1);
+      const ultimoDia = new Date(anoUsar, mesRef, 0);
       return {
         dataInicio: format(primeiroDia, "yyyy-MM-dd"),
         dataFim: format(ultimoDia, "yyyy-MM-dd")
@@ -579,51 +576,43 @@ const Index = () => {
     setEditingDespesa(null);
   };
 
-  const limparFiltros = () => {
-    setResponsavelFilter("todos");
-    setTipoFilter("todos");
-    setCategoriaFilter("todas");
-    setParcelaFilter([]);
-    setDataInicio("");
-    setDataFim("");
-    setMesSelecionado(null);
-    setRegistrosMostrados(10);
-  };
-
-  const handleSelecionarMes = async (mes: number) => {
+  const handleSelecionarMes = async (mes: number, ano?: number) => {
     if (!userId) return;
 
-    const periodo = await calcularPeriodoDoMes(userId, mes);
-    setDataInicioCartao(periodo.dataInicio);
-    setDataFimCartao(periodo.dataFim);
-    setTipoFilter("Crédito");
+    const anoUsar = ano || anoSelecionado;
+    const periodo = await calcularPeriodoDoMes(userId, mes, anoUsar);
+
+    // Aplica as datas do período configurado aos filtros principais
+    setDataInicio(periodo.dataInicio);
+    setDataFim(periodo.dataFim);
     setMesSelecionado(mes);
+    if (ano) setAnoSelecionado(ano);
     setRegistrosMostrados(10);
 
     toast({
-      title: "Mês selecionado",
-      description: `Mostrando despesas de cartão do período configurado.`,
+      title: "Período selecionado",
+      description: `Mostrando despesas de ${getMonthName(mes - 1)} ${anoUsar}.`,
     });
   };
 
-  const despesasOrdenadas = [...despesasFiltradas].sort((a, b) => (b.id || 0) - (a.id || 0));
+  const despesasExibidas = despesasFiltradas.filter(despesa => {
+    if (!activeSummaryFilter) return true;
+
+    switch (activeSummaryFilter.type) {
+      case "credito":
+        return despesa.Tipo === "Crédito";
+      case "outros":
+        return ["Pix", "Débito", "Dinheiro"].includes(despesa.Tipo);
+      case "responsavel":
+        return despesa.Responsavel === activeSummaryFilter.value;
+      default:
+        return true;
+    }
+  });
+
+  const despesasOrdenadas = [...despesasExibidas].sort((a, b) => (b.id || 0) - (a.id || 0));
   const despesasVisiveis = despesasOrdenadas.slice(0, registrosMostrados);
   const temMaisDespesas = despesasOrdenadas.length > registrosMostrados;
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate('/auth');
-  };
-
-  const handleSavePeriodoFatura = (dataInicio: string, dataFim: string) => {
-    setDataInicioCartao(dataInicio);
-    setDataFimCartao(dataFim);
-
-    toast({
-      title: "Período atualizado temporariamente!",
-      description: "Use 'Configurar Meses' para salvar configurações permanentes.",
-    });
-  };
 
   const handleFormSubmit = async (data: any) => {
     await handleAddOrUpdate({
@@ -633,87 +622,160 @@ const Index = () => {
     handleFormClose();
   };
 
+  const handlePreviousMonth = async () => {
+    if (!userId) return;
+
+    let novoMes = mesSelecionado || (currentMonthIndex + 1);
+    let novoAno = anoSelecionado;
+
+    novoMes--;
+    if (novoMes < 1) {
+      novoMes = 12;
+      novoAno--;
+      if (novoAno < 2025) novoAno = 2028; // Circular entre 2025-2028
+    }
+
+    setAnoSelecionado(novoAno);
+    await handleSelecionarMes(novoMes, novoAno);
+    setCurrentMonthIndex(novoMes - 1);
+  };
+
+  const handleNextMonth = async () => {
+    if (!userId) return;
+
+    let novoMes = mesSelecionado || (currentMonthIndex + 1);
+    let novoAno = anoSelecionado;
+
+    novoMes++;
+    if (novoMes > 12) {
+      novoMes = 1;
+      novoAno++;
+      if (novoAno > 2028) novoAno = 2025; // Circular entre 2025-2028
+    }
+
+    setAnoSelecionado(novoAno);
+    await handleSelecionarMes(novoMes, novoAno);
+    setCurrentMonthIndex(novoMes - 1);
+  };
+
+  const getMonthName = (index: number) => {
+    const months = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+      "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+    return months[index];
+  };
+
+  const getCurrentPeriodLabel = () => {
+    const mes = mesSelecionado || (currentMonthIndex + 1);
+    return getMonthName(mes - 1);
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-3 md:p-6">
-      <div className="max-w-7xl mx-auto space-y-4 md:space-y-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:justify-between lg:items-center">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-8">
+        <div className="flex flex-col gap-6 lg:flex-row lg:justify-between lg:items-end">
+          <div className="space-y-2">
+            <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
               Fin DantasInfo
             </h1>
-            <p className="text-sm md:text-base text-slate-600 dark:text-slate-400 mt-1">
-              Gerencie suas despesas de forma eficiente
+            <p className="text-base text-slate-600 dark:text-slate-400 font-medium">
+              Gerencie suas despesas de forma inteligente
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => setFormOpen(true)} className="flex-1 sm:flex-none">
-              <Plus className="mr-2 h-4 w-4" />
-              <span className="hidden sm:inline">Nova Despesa</span>
-              <span className="sm:hidden">Nova</span>
-            </Button>
-            <ExportButton
-              despesas={despesasFiltradas}
-              filtrosAtivos={{
-                responsavel: responsavelFilter,
-                tipo: tipoFilter,
-                categoria: categoriaFilter
-              }}
-            />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="flex-1 sm:flex-none">
-                  <MoreVertical className="mr-2 h-4 w-4" />
-                  <span className="hidden sm:inline">Mais Opções</span>
-                  <span className="sm:hidden">Mais</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-popover border-border z-50">
-                <DropdownMenuItem onClick={() => setGraficosOpen(true)}>
-                  <BarChart3 className="mr-2 h-4 w-4" />
-                  Gráficos
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setConfigMesesOpen(true)}>
-                  Configurar Meses
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setPeriodoCartaoOpen(true)}>
-                  Período Cartão
-                </DropdownMenuItem>
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>
-                    Filtrar por Mês do Cartão
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent>
-                    {["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-                      "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"].map((mes, idx) => (
-                        <DropdownMenuItem
-                          key={idx}
-                          onClick={() => handleSelecionarMes(idx + 1)}
-                          className={mesSelecionado === idx + 1 ? "bg-accent" : ""}
-                        >
-                          {mes}
-                        </DropdownMenuItem>
-                      ))}
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
-              </DropdownMenuContent>
-            </DropdownMenu>
+
+          <div className="flex items-center gap-4 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm p-2 rounded-xl border border-white/20 shadow-sm">
             <Button
-              variant={showFilters ? "secondary" : "outline"}
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex-1 sm:flex-none"
+              variant="ghost"
+              size="icon"
+              onClick={handlePreviousMonth}
+              className="h-10 w-10 hover:bg-primary/10 hover:text-primary transition-colors"
+              title="Mês anterior"
             >
-              <Filter className="mr-2 h-4 w-4" />
-              <span className="hidden sm:inline">{showFilters ? "Ocultar Filtros" : "Mostrar Filtros"}</span>
-              <span className="sm:hidden">Filtros</span>
+              <ChevronLeft className="h-5 w-5" />
             </Button>
-            <Button variant="outline" onClick={fetchDespesas} size="icon" className="shrink-0">
-              <RefreshCw className="h-4 w-4" />
+
+            <div className="px-6 py-2 bg-primary/10 rounded-lg min-w-[160px] text-center border border-primary/20">
+              <span className="text-base font-semibold text-primary">
+                {getCurrentPeriodLabel()}
+              </span>
+            </div>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleNextMonth}
+              className="h-10 w-10 hover:bg-primary/10 hover:text-primary transition-colors"
+              title="Próximo mês"
+            >
+              <ChevronRight className="h-5 w-5" />
             </Button>
-            <Button variant="destructive" onClick={handleLogout} size="icon" className="shrink-0">
-              <LogOut className="h-4 w-4" />
+
+            <div className="w-px h-8 bg-border mx-2" />
+
+            <Select
+              value={anoSelecionado.toString()}
+              onValueChange={(value) => {
+                const novoAno = parseInt(value);
+                setAnoSelecionado(novoAno);
+                const mes = mesSelecionado || (currentMonthIndex + 1);
+                handleSelecionarMes(mes, novoAno);
+              }}
+            >
+              <SelectTrigger className="w-[100px] h-10 bg-white/80 dark:bg-slate-800/80 border-primary/20">
+                <Calendar className="h-4 w-4 mr-2" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="2025">2025</SelectItem>
+                <SelectItem value="2026">2026</SelectItem>
+                <SelectItem value="2027">2027</SelectItem>
+                <SelectItem value="2028">2028</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <div className="w-px h-8 bg-border mx-2" />
+
+            <Button
+              variant="ghost"
+              onClick={fetchDespesas}
+              size="icon"
+              className="h-10 w-10 hover:bg-primary/10 hover:text-primary transition-colors"
+              title="Atualizar dados"
+            >
+              <RefreshCw className="h-5 w-5" />
             </Button>
           </div>
         </div>
+
+        <Filters
+          responsavelFilter={responsavelFilter}
+          setResponsavelFilter={setResponsavelFilter}
+          tipoFilter={tipoFilter}
+          setTipoFilter={setTipoFilter}
+          categoriaFilter={categoriaFilter}
+          setCategoriaFilter={setCategoriaFilter}
+          parcelaFilter={parcelaFilter}
+          setParcelaFilter={setParcelaFilter}
+          dataInicio={dataInicio}
+          setDataInicio={setDataInicio}
+          dataFim={dataFim}
+          setDataFim={setDataFim}
+          onMesSelecionado={setMesSelecionado}
+          anoSelecionado={anoSelecionado}
+          setAnoSelecionado={setAnoSelecionado}
+          categorias={[...new Set(despesas.map(d => d.Categoria).filter(Boolean))]}
+          responsaveis={[...new Set(despesas.map(d => d.Responsavel).filter(Boolean))]}
+          periodosMensais={periodosMensais}
+          userId={userId || ""}
+          onClearFilters={() => {
+            setResponsavelFilter("todos");
+            setTipoFilter("todos");
+            setCategoriaFilter("todas");
+            setParcelaFilter([]);
+            setDataInicio("");
+            setDataFim("");
+            setMesSelecionado(null);
+          }}
+        />
 
         {error && (
           <Alert variant="destructive">
@@ -733,30 +795,11 @@ const Index = () => {
           </Alert>
         )}
 
-        {showFilters && (
-          <Filters
-            responsavelFilter={responsavelFilter}
-            setResponsavelFilter={setResponsavelFilter}
-            tipoFilter={tipoFilter}
-            setTipoFilter={setTipoFilter}
-            categoriaFilter={categoriaFilter}
-            setCategoriaFilter={setCategoriaFilter}
-            parcelaFilter={parcelaFilter}
-            setParcelaFilter={setParcelaFilter}
-            dataInicio={dataInicio}
-            setDataInicio={setDataInicio}
-            dataFim={dataFim}
-            setDataFim={setDataFim}
-            onMesSelecionado={setMesSelecionado}
-            categorias={[...new Set(despesas.map(d => d.Categoria).filter(Boolean))]}
-            responsaveis={[...new Set(despesas.map(d => d.Responsavel).filter(Boolean))]}
-            periodosMensais={periodosMensais}
-            userId={userId || ""}
-            onClearFilters={limparFiltros}
-          />
-        )}
-
-        <SummaryCards despesas={despesasFiltradas} />
+        <SummaryCards
+          despesas={despesasFiltradas}
+          onFilterChange={handleSummaryFilterChange}
+          activeFilter={activeSummaryFilter}
+        />
 
         <CategoryCharts despesas={despesasFiltradas} />
 
@@ -794,25 +837,6 @@ const Index = () => {
           />
         )}
 
-        {userId && configMesesOpen && (
-          <PeriodosMensaisManager
-            userId={userId}
-            onUpdate={() => loadUserProfile(userId)}
-            open={configMesesOpen}
-            onOpenChange={setConfigMesesOpen}
-          />
-        )}
-
-        {periodoCartaoOpen && (
-          <PeriodoFaturamentoConfig
-            dataInicio={dataInicioCartao}
-            dataFim={dataFimCartao}
-            onSave={handleSavePeriodoFatura}
-            open={periodoCartaoOpen}
-            onOpenChange={setPeriodoCartaoOpen}
-          />
-        )}
-
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -824,29 +848,14 @@ const Index = () => {
             <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
               <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                <Trash2 className="mr-2 h-4 w-4" />
                 Excluir
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-
-        {graficosOpen && (
-          <div className="fixed inset-0 bg-background/95 z-50 overflow-y-auto">
-            <div className="container mx-auto py-8 px-4">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold">Análise de Gastos</h2>
-                <Button variant="ghost" size="icon" onClick={() => setGraficosOpen(false)}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              <GraficosComparativos despesas={despesasFiltradas} periodosMensais={periodosMensais} />
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
 };
 
-export default Index;
+export default Dashboard;

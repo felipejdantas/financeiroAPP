@@ -7,6 +7,7 @@ export interface Despesa {
   valor: number;
   Categoria: string;
   id?: number;
+  created_at?: string;
 }
 
 export type ResponsavelFilter = 'todos' | string;

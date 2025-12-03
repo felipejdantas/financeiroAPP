@@ -34,7 +34,7 @@ export const CategoryCharts = ({ despesas }: CategoryChartsProps) => {
 
   // Top 8 para o gráfico de pizza
   const top8ChartData = allChartData.slice(0, 8);
-  
+
   // Outros (se houver mais de 8 categorias)
   const othersValue = allChartData.slice(8).reduce((sum, item) => sum + item.value, 0);
   if (othersValue > 0) {
@@ -56,7 +56,7 @@ export const CategoryCharts = ({ despesas }: CategoryChartsProps) => {
           <div className="flex items-center gap-2">
             <PieChartIcon className="h-5 w-5 text-primary" />
             <CardTitle className="text-card-foreground">
-              Top 8 Categorias ({despesas.length} {despesas.length === 1 ? 'despesa' : 'despesas'})
+              Categorias ({despesas.length} {despesas.length === 1 ? 'despesa' : 'despesas'})
             </CardTitle>
           </div>
         </CardHeader>
@@ -88,8 +88,8 @@ export const CategoryCharts = ({ despesas }: CategoryChartsProps) => {
                     borderRadius: "6px",
                   }}
                 />
-                <Legend 
-                  verticalAlign="bottom" 
+                <Legend
+                  verticalAlign="bottom"
                   height={36}
                   formatter={(value) => value.length > 20 ? value.substring(0, 20) + '...' : value}
                 />
@@ -122,14 +122,14 @@ export const CategoryCharts = ({ despesas }: CategoryChartsProps) => {
                 margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis 
-                  type="number" 
+                <XAxis
+                  type="number"
                   tickFormatter={(value) => `R$ ${value.toFixed(0)}`}
                   stroke="hsl(var(--foreground))"
                 />
-                <YAxis 
-                  type="category" 
-                  dataKey="name" 
+                <YAxis
+                  type="category"
+                  dataKey="name"
                   width={90}
                   stroke="hsl(var(--foreground))"
                   tick={{ fontSize: 12 }}

@@ -10,13 +10,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Save } from "lucide-react";
+import { Save, Calendar } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 
 interface PeriodoMensal {
   mes_referencia: number;
+  ano_referencia: number;
   data_inicio: string; // YYYY-MM-DD
   data_fim: string; // YYYY-MM-DD
   nome_periodo: string;
@@ -38,8 +40,11 @@ const MESES = [
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
 ];
 
+const ANOS = [2025, 2026, 2027, 2028];
+
 export const PeriodosMensaisManager = ({ userId, onUpdate, open, onOpenChange }: PeriodosMensaisManagerProps) => {
   const [periodos, setPeriodos] = useState<PeriodoMensal[]>([]);
+  const [anoSelecionado, setAnoSelecionado] = useState(new Date().getFullYear());
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -47,16 +52,17 @@ export const PeriodosMensaisManager = ({ userId, onUpdate, open, onOpenChange }:
     if (open && userId) {
       loadPeriodos();
     }
-  }, [open, userId]);
+  }, [open, userId, anoSelecionado]);
 
   const loadPeriodos = async () => {
     setLoading(true);
     try {
-      // Tenta buscar com as novas colunas
+      // Busca períodos do ano selecionado
       const { data, error } = await supabase
         .from("periodos_mensais_cartao")
         .select("*")
         .eq("user_id", userId)
+        .eq("ano_referencia", anoSelecionado)
         .order("mes_referencia");
 
       if (error) throw error;
@@ -66,9 +72,8 @@ export const PeriodosMensaisManager = ({ userId, onUpdate, open, onOpenChange }:
         data?.map(p => [p.mes_referencia, p]) || []
       );
 
-      // Inicializa todos os 12 meses
+      // Inicializa todos os 12 meses para o ano selecionado
       const todosPeriodos: PeriodoMensal[] = [];
-      const anoAtual = new Date().getFullYear();
 
       for (let mes = 1; mes <= 12; mes++) {
         const existente = periodosMap.get(mes);
@@ -80,19 +85,20 @@ export const PeriodosMensaisManager = ({ userId, onUpdate, open, onOpenChange }:
 
           if (!dataInicio && existente.dia_inicio) {
             const mesInicio = mes + (existente.mes_inicio_offset || 0);
-            const anoInicio = mesInicio < 1 ? anoAtual - 1 : (mesInicio > 12 ? anoAtual + 1 : anoAtual);
+            const anoInicio = mesInicio < 1 ? anoSelecionado - 1 : (mesInicio > 12 ? anoSelecionado + 1 : anoSelecionado);
             const mesInicioAjustado = mesInicio < 1 ? 12 + mesInicio : (mesInicio > 12 ? mesInicio - 12 : mesInicio);
             dataInicio = format(new Date(anoInicio, mesInicioAjustado - 1, existente.dia_inicio), "yyyy-MM-dd");
           }
 
           if (!dataFim && existente.dia_fim) {
-            dataFim = format(new Date(anoAtual, mes - 1, existente.dia_fim), "yyyy-MM-dd");
+            dataFim = format(new Date(anoSelecionado, mes - 1, existente.dia_fim), "yyyy-MM-dd");
           }
 
           todosPeriodos.push({
             mes_referencia: mes,
-            data_inicio: dataInicio || format(new Date(anoAtual, mes - 1, 1), "yyyy-MM-dd"),
-            data_fim: dataFim || format(new Date(anoAtual, mes, 0), "yyyy-MM-dd"),
+            ano_referencia: anoSelecionado,
+            data_inicio: dataInicio || format(new Date(anoSelecionado, mes - 1, 1), "yyyy-MM-dd"),
+            data_fim: dataFim || format(new Date(anoSelecionado, mes, 0), "yyyy-MM-dd"),
             nome_periodo: existente.nome_periodo || MESES[mes - 1],
             dia_inicio: existente.dia_inicio,
             mes_inicio_offset: existente.mes_inicio_offset,
@@ -100,11 +106,12 @@ export const PeriodosMensaisManager = ({ userId, onUpdate, open, onOpenChange }:
           });
         } else {
           // Período padrão: mês completo
-          const primeiroDia = new Date(anoAtual, mes - 1, 1);
-          const ultimoDia = new Date(anoAtual, mes, 0);
+          const primeiroDia = new Date(anoSelecionado, mes - 1, 1);
+          const ultimoDia = new Date(anoSelecionado, mes, 0);
 
           todosPeriodos.push({
             mes_referencia: mes,
+            ano_referencia: anoSelecionado,
             data_inicio: format(primeiroDia, "yyyy-MM-dd"),
             data_fim: format(ultimoDia, "yyyy-MM-dd"),
             nome_periodo: MESES[mes - 1],
@@ -156,14 +163,14 @@ export const PeriodosMensaisManager = ({ userId, onUpdate, open, onOpenChange }:
         }
       }
 
-      // Deletar todos os períodos existentes do usuário
+      // Deletar períodos existentes do usuário para o ano selecionado
       await supabase
         .from("periodos_mensais_cartao")
         .delete()
-        .eq("user_id", userId);
+        .eq("user_id", userId)
+        .eq("ano_referencia", anoSelecionado);
 
       // Inserir os novos períodos
-      // Nota: Mantemos os campos legados calculados para compatibilidade reversa se necessário
       const periodosParaInserir = periodos.map(p => {
         const dataInicio = new Date(p.data_inicio);
         const dataFim = new Date(p.data_fim);
@@ -171,12 +178,13 @@ export const PeriodosMensaisManager = ({ userId, onUpdate, open, onOpenChange }:
         return {
           user_id: userId,
           mes_referencia: p.mes_referencia,
+          ano_referencia: p.ano_referencia,
           data_inicio: p.data_inicio,
           data_fim: p.data_fim,
           nome_periodo: p.nome_periodo,
           // Preenche campos legados com valores aproximados/compatíveis
           dia_inicio: dataInicio.getDate(),
-          mes_inicio_offset: 0, // Simplificação
+          mes_inicio_offset: 0,
           dia_fim: dataFim.getDate()
         };
       });
@@ -222,6 +230,30 @@ export const PeriodosMensaisManager = ({ userId, onUpdate, open, onOpenChange }:
             Configure o período de faturamento para cada mês do ano com datas completas.
           </DialogDescription>
         </DialogHeader>
+
+        {/* Seletor de Ano */}
+        <div className="flex items-center gap-3 p-4 bg-primary/5 rounded-lg border border-primary/20">
+          <Calendar className="h-5 w-5 text-primary" />
+          <Label className="text-sm font-medium">Ano:</Label>
+          <Select
+            value={anoSelecionado.toString()}
+            onValueChange={(value) => setAnoSelecionado(parseInt(value))}
+          >
+            <SelectTrigger className="w-[120px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ANOS.map(ano => (
+                <SelectItem key={ano} value={ano.toString()}>
+                  {ano}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <span className="text-sm text-muted-foreground ml-auto">
+            Configurando períodos para {anoSelecionado}
+          </span>
+        </div>
 
         <div className="space-y-3 py-4">
           {periodos.map((periodo) => (

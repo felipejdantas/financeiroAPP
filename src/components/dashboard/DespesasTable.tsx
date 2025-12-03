@@ -35,6 +35,88 @@ export const DespesasTable = ({ despesas, onEdit, onDelete, onDuplicate }: Despe
     }
   };
 
+  const getCategoryEmoji = (categoria: string) => {
+    const emojis: { [key: string]: string } = {
+      "Alimentação": "🍔",
+      "Transporte": "🚗",
+      "Saúde": "💊",
+      "Educação": "📚",
+      "Lazer": "🎉",
+      "Moradia": "🏠",
+      "Contas": "💡",
+      "Vestuário": "👕",
+      "Outros": "📦",
+      "Salário": "💰",
+      "Investimento": "📈",
+      "Presente": "🎁",
+      "Viagem": "✈️",
+      "Pet": "🐾",
+      "Mercado": "🛒",
+      "Farmácia": "⚕️",
+      "Restaurante": "🍽️",
+      "Serviços": "🔧",
+      "Assinaturas": "📺",
+      "Beleza": "💅",
+      "Esporte": "⚽",
+      "Eletrônicos": "📱",
+      "Carro": "🚘",
+      "Moto": "🏍️",
+      "Uber": "🚕",
+      "Ônibus": "🚌",
+      "Metrô": "🚇",
+      "Trem": "🚆",
+      "Combustível": "⛽",
+      "Estacionamento": "🅿️",
+      "Pedágio": "🚧",
+      "Seguro": "🛡️",
+      "Imposto": "💸",
+      "Taxa": "📉",
+      "Juros": "📊",
+      "Multa": "🚫",
+      "Doação": "🤝",
+      "Empréstimo": "💳",
+      "Dívida": "📉",
+      "Poupança": "🐷",
+      "Reserva": "🏦",
+      "Emergência": "🚨",
+      "Manutenção": "🛠️",
+      "Reforma": "🔨",
+      "Decoração": "🖼️",
+      "Móveis": "🪑",
+      "Eletrodomésticos": "🔌",
+      "Limpeza": "🧹",
+      "Higiene": "🚿",
+      "Cosméticos": "💄",
+      "Roupas": "👗",
+      "Sapatos": "👠",
+      "Acessórios": "💍",
+      "Jóias": "💎",
+      "Livros": "📖",
+      "Cursos": "🎓",
+      "Escola": "🏫",
+      "Faculdade": "🏛️",
+      "Material Escolar": "✏️",
+      "Cinema": "🎬",
+      "Teatro": "🎭",
+      "Show": "🎤",
+      "Jogos": "🎮",
+      "Streaming": "📺",
+      "Internet": "🌐",
+      "Celular": "📱",
+      "Telefone": "☎️",
+      "TV": "📺",
+      "Água": "💧",
+      "Luz": "💡",
+      "Gás": "🔥",
+      "Condomínio": "🏢",
+      "Aluguel": "🏠",
+      "IPTU": "🏙️",
+      "IPVA": "🚗",
+      "Licenciamento": "📄",
+    };
+    return emojis[categoria] || "📝";
+  };
+
   return (
     <Card className="bg-card border-border shadow-sm">
       <CardHeader>
@@ -70,7 +152,9 @@ export const DespesasTable = ({ despesas, onEdit, onDelete, onDuplicate }: Despe
                     <TableCell className="text-foreground text-[10px] md:text-xs max-w-[120px] truncate">{despesa.Descrição}</TableCell>
                     <TableCell className="text-foreground text-[10px] md:text-xs hidden sm:table-cell">{despesa.Responsavel}</TableCell>
                     <TableCell className="text-foreground text-[10px] md:text-xs hidden md:table-cell">{despesa.Tipo}</TableCell>
-                    <TableCell className="text-foreground text-[10px] md:text-xs hidden lg:table-cell">{despesa.Categoria}</TableCell>
+                    <TableCell className="text-foreground text-[10px] md:text-xs hidden lg:table-cell">
+                      {getCategoryEmoji(despesa.Categoria)} {despesa.Categoria}
+                    </TableCell>
                     <TableCell className="text-foreground text-[10px] md:text-xs">{despesa.Parcelas}</TableCell>
                     <TableCell className="text-right font-medium text-primary text-[10px] md:text-xs whitespace-nowrap">
                       {formatCurrency(despesa.valor)}
