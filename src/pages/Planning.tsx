@@ -68,11 +68,12 @@ export default function Planning() {
             setCategorias(categoryNames);
 
             // Fetch budget goals
-            const { data: budgets, error: budgetError } = await supabase
-                .from("budget_planning")
+            // Cast to any to avoid type errors if table types aren't generated yet
+            const { data: budgets, error: budgetError } = await (supabase
+                .from("budget_planning" as any)
                 .select("*")
                 .eq("user_id", userId)
-                .eq("ano", anoSelecionado);
+                .eq("ano", anoSelecionado)) as any;
 
             if (budgetError) throw budgetError;
 
@@ -110,8 +111,8 @@ export default function Planning() {
                 });
 
                 // Get budget goal (default to 0)
-                const categoryBudgets = budgets?.filter(b => b.categoria === cat) || [];
-                const meta = categoryBudgets.reduce((sum, b) => sum + (b.meta || 0), 0) / 12; // Average monthly budget
+                const categoryBudgets = budgets?.filter((b: any) => b.categoria === cat) || [];
+                const meta = categoryBudgets.reduce((sum: number, b: any) => sum + (b.meta || 0), 0) / 12; // Average monthly budget
 
                 budgetMap[cat] = {
                     categoria: cat,
@@ -146,9 +147,9 @@ export default function Planning() {
                 meta: newMeta
             }));
 
-            const { error } = await supabase
-                .from("budget_planning")
-                .upsert(updates, { onConflict: 'user_id, categoria, mes, ano' });
+            const { error } = await (supabase
+                .from("budget_planning" as any)
+                .upsert(updates, { onConflict: 'user_id, categoria, mes, ano' })) as any;
 
             if (error) throw error;
 
@@ -177,10 +178,18 @@ export default function Planning() {
 
     const totalBudget = Object.values(budgetData).reduce((sum, cat) => sum + cat.meta, 0);
 
+    // Calculate monthly totals
+    const monthlyTotals = new Array(12).fill(0);
+    Object.values(budgetData).forEach(cat => {
+        cat.actual.forEach((val, idx) => {
+            monthlyTotals[idx] += val;
+        });
+    });
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-3 md:p-6">
-            <div className="max-w-7xl mx-auto space-y-4 md:space-y-6">
-                <div className="flex flex-col gap-4 lg:flex-row lg:justify-between lg:items-center">
+            <div className="max-w-7xl mx-auto space-y-4 md:space-y-6 flex flex-col h-[calc(100vh-3rem)]">
+                <div className="flex flex-col gap-4 lg:flex-row lg:justify-between lg:items-center shrink-0">
                     <div>
                         <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white">
                             Planejamento de Orçamento
@@ -206,45 +215,77 @@ export default function Planning() {
                     </div>
                 </div>
 
-                <Card>
-                    <CardHeader>
+                <Card className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                    <CardHeader className="shrink-0">
                         <CardTitle>Orçamento Total: R$ {totalBudget.toFixed(2)}</CardTitle>
                     </CardHeader>
-                    <CardContent>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead>
-                                    <tr className="border-b">
-                                        <th className="text-left p-2 sticky left-0 bg-background z-10">Categoria</th>
-                                        <th className="text-right p-2">Meta Mensal</th>
-                                        <th className="text-right p-2">%</th>
+                    <CardContent className="flex-1 min-h-0 p-0">
+                        {/* Custom container to handle sticky headers and scrollbar correctly */}
+                        <div className="relative w-full h-full overflow-auto">
+                            <table className="w-full text-sm caption-bottom">
+                                <thead className="sticky top-0 z-20 bg-card shadow-sm [&_tr]:border-b">
+                                    <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                                        <th className="h-12 px-4 text-left align-middle font-bold text-primary w-[200px] sticky left-0 z-30 bg-card shadow-[1px_0_0_0_rgba(0,0,0,0.1)] dark:shadow-[1px_0_0_0_rgba(255,255,255,0.1)]">Categoria</th>
+                                        <th className="h-12 px-4 text-right align-middle font-bold text-primary min-w-[120px]">Meta Mensal</th>
+                                        <th className="h-12 px-4 text-right align-middle font-bold text-primary">%</th>
                                         {MONTHS.map(month => (
-                                            <th key={month} className="text-right p-2 min-w-[100px]">{month} {anoSelecionado}</th>
+                                            <th key={month} className="h-12 px-4 text-right align-middle font-bold text-primary min-w-[120px]">{month} {anoSelecionado}</th>
+                                        ))}
+                                    </tr>
+                                    {/* Summary Row */}
+                                    <tr className="border-b bg-muted/30 font-bold">
+                                        <td className="h-12 px-4 text-left align-middle sticky left-0 z-30 bg-muted/30 shadow-[1px_0_0_0_rgba(0,0,0,0.1)] dark:shadow-[1px_0_0_0_rgba(255,255,255,0.1)]">
+                                            TOTAIS
+                                        </td>
+                                        <td className="h-12 px-4 text-right align-middle text-primary">
+                                            {totalBudget.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                        </td>
+                                        <td className="h-12 px-4 text-right align-middle text-primary">
+                                            100%
+                                        </td>
+                                        {monthlyTotals.map((total, index) => (
+                                            <td key={`total-${index}`} className="h-12 px-4 text-right align-middle text-primary">
+                                                {total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                            </td>
                                         ))}
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody className="[&_tr:last-child]:border-0">
                                     {Object.values(budgetData).map((cat) => (
-                                        <tr key={cat.categoria} className="border-b hover:bg-muted/50">
-                                            <td className="p-2 font-medium sticky left-0 bg-background">{cat.categoria}</td>
-                                            <td className="p-2">
+                                        <tr key={cat.categoria} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                                            <td className="p-4 align-middle font-medium sticky left-0 z-10 bg-card shadow-[1px_0_0_0_rgba(0,0,0,0.1)] dark:shadow-[1px_0_0_0_rgba(255,255,255,0.1)]">
+                                                {cat.categoria}
+                                            </td>
+                                            <td className="p-4 align-middle text-right">
                                                 <Input
                                                     type="number"
                                                     step="0.01"
                                                     value={cat.meta}
                                                     onChange={(e) => handleBudgetChange(cat.categoria, parseFloat(e.target.value) || 0)}
-                                                    className="w-24 text-right"
+                                                    className="w-24 text-right ml-auto h-8"
                                                 />
                                             </td>
-                                            <td className="text-right p-2">
-                                                {totalBudget > 0 ? ((cat.meta / totalBudget) * 100).toFixed(1) : 0}%
+                                            <td className="p-4 align-middle text-right">
+                                                <span className={`font-medium ${totalBudget > 0 && (cat.meta / totalBudget) > 0.2
+                                                    ? "text-yellow-600 dark:text-yellow-400"
+                                                    : "text-muted-foreground"
+                                                    }`}>
+                                                    {totalBudget > 0 ? ((cat.meta / totalBudget) * 100).toFixed(1) : 0}%
+                                                </span>
                                             </td>
                                             {cat.actual.map((value, index) => (
                                                 <td
                                                     key={index}
-                                                    className={`text-right p-2 ${value > cat.meta ? 'text-red-600 font-bold' : ''}`}
+                                                    className="p-4 align-middle text-right"
                                                 >
-                                                    R$ {value.toFixed(2)}
+                                                    <span className={`${value > cat.meta
+                                                        ? 'text-destructive font-bold'
+                                                        : value > 0
+                                                            ? 'text-green-600 dark:text-green-400'
+                                                            : 'text-muted-foreground'
+                                                        }`}>
+                                                        {value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                    </span>
                                                 </td>
                                             ))}
                                         </tr>

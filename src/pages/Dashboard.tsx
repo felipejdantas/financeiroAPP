@@ -9,6 +9,7 @@ import { SummaryCards } from "@/components/dashboard/SummaryCards";
 import { CategoryCharts } from "@/components/dashboard/CategoryCharts";
 import { DespesasTable } from "@/components/dashboard/DespesasTable";
 import { DespesaForm } from "@/components/dashboard/DespesaForm";
+import { BudgetVsActual } from "@/components/dashboard/BudgetVsActual";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -671,7 +672,7 @@ const Dashboard = () => {
       <div className="max-w-7xl mx-auto space-y-8">
         <div className="flex flex-col gap-6 lg:flex-row lg:justify-between lg:items-end">
           <div className="space-y-2">
-            <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+            <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
               Fin DantasInfo
             </h1>
             <p className="text-base text-slate-600 dark:text-slate-400 font-medium">
@@ -690,8 +691,8 @@ const Dashboard = () => {
               <ChevronLeft className="h-5 w-5" />
             </Button>
 
-            <div className="px-6 py-2 bg-primary/10 rounded-lg min-w-[160px] text-center border border-primary/20">
-              <span className="text-base font-semibold text-primary">
+            <div className="px-6 py-2 bg-primary rounded-lg min-w-[160px] text-center shadow-sm">
+              <span className="text-base font-semibold text-white">
                 {getCurrentPeriodLabel()}
               </span>
             </div>
@@ -717,8 +718,8 @@ const Dashboard = () => {
                 handleSelecionarMes(mes, novoAno);
               }}
             >
-              <SelectTrigger className="w-[100px] h-10 bg-white/80 dark:bg-slate-800/80 border-primary/20">
-                <Calendar className="h-4 w-4 mr-2" />
+              <SelectTrigger className="w-[100px] h-10 bg-white/80 dark:bg-slate-800/80 border-primary/20 focus:ring-primary">
+                <Calendar className="h-4 w-4 mr-2 text-primary" />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -770,6 +771,16 @@ const Dashboard = () => {
         />
 
         <CategoryCharts despesas={despesasFiltradas} />
+
+        {userId && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <BudgetVsActual
+              currentMonth={mesSelecionado || (currentMonthIndex + 1)}
+              currentYear={anoSelecionado}
+              userId={userId}
+            />
+          </div>
+        )}
 
         <DespesasTable
           despesas={despesasVisiveis}
