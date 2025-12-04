@@ -57,7 +57,9 @@ export default function Transactions() {
     const [despesaToDelete, setDespesaToDelete] = useState<number | null>(null);
     const [registrosMostrados, setRegistrosMostrados] = useState(10);
     const [mesSelecionado, setMesSelecionado] = useState<number | null>(null);
+    const [anoSelecionado, setAnoSelecionado] = useState<number>(new Date().getFullYear());
     const [periodosMensais, setPeriodosMensais] = useState<any[]>([]);
+    const [categoryEmojis, setCategoryEmojis] = useState<Record<string, string>>({});
 
     const fetchDespesas = async () => {
         if (!userId) return;
@@ -112,6 +114,31 @@ export default function Transactions() {
         }
     };
 
+    const fetchCategoryEmojis = async () => {
+        if (!userId) return;
+        try {
+            const { data, error } = await (supabase
+                .from('categoria_emojis' as any)
+                .select('categoria, emoji')
+                .eq('user_id', userId)) as any;
+
+            if (error) {
+                console.error('Error fetching emojis:', error);
+                return;
+            }
+
+            if (data) {
+                const emojiMap: Record<string, string> = {};
+                data.forEach((item: any) => {
+                    emojiMap[item.categoria] = item.emoji;
+                });
+                setCategoryEmojis(emojiMap);
+            }
+        } catch (error) {
+            console.error('Error in fetchCategoryEmojis:', error);
+        }
+    };
+
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
             if (session?.user) {
@@ -136,6 +163,7 @@ export default function Transactions() {
         if (userId) {
             fetchDespesas();
             fetchPeriodosMensais();
+            fetchCategoryEmojis();
             loadUserProfile(userId);
         }
     }, [userId]);
@@ -437,6 +465,8 @@ export default function Transactions() {
                 dataFim={dataFim}
                 setDataFim={setDataFim}
                 onMesSelecionado={setMesSelecionado}
+                anoSelecionado={anoSelecionado}
+                setAnoSelecionado={setAnoSelecionado}
                 categorias={[...new Set(despesas.map(d => d.Categoria).filter(Boolean))]}
                 responsaveis={[...new Set(despesas.map(d => d.Responsavel).filter(Boolean))]}
                 periodosMensais={periodosMensais}
@@ -449,6 +479,7 @@ export default function Transactions() {
                 onEdit={handleEdit}
                 onDelete={handleDeleteClick}
                 onDuplicate={handleDuplicate}
+                categoryEmojis={categoryEmojis}
             />
 
             {temMaisDespesas && (

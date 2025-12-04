@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { Despesa, ResponsavelFilter, TipoFilter } from "@/types/despesa";
+import { Despesa } from "@/types/despesa";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, AlertCircle, Plus, ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,7 +9,6 @@ import { SummaryCards } from "@/components/dashboard/SummaryCards";
 import { CategoryCharts } from "@/components/dashboard/CategoryCharts";
 import { DespesasTable } from "@/components/dashboard/DespesasTable";
 import { DespesaForm } from "@/components/dashboard/DespesaForm";
-import { Filters } from "@/components/dashboard/Filters";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -52,10 +51,6 @@ const Dashboard = () => {
   const [dataInicioCartao, setDataInicioCartao] = useState("");
   const [dataFimCartao, setDataFimCartao] = useState("");
 
-  const [responsavelFilter, setResponsavelFilter] = useState<ResponsavelFilter>("todos");
-  const [tipoFilter, setTipoFilter] = useState<TipoFilter>("todos");
-  const [categoriaFilter, setCategoriaFilter] = useState("todas");
-  const [parcelaFilter, setParcelaFilter] = useState<string[]>([]);
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
   const [formOpen, setFormOpen] = useState(false);
@@ -68,6 +63,7 @@ const Dashboard = () => {
   const [periodosMensais, setPeriodosMensais] = useState<any[]>([]);
   const [currentMonthIndex, setCurrentMonthIndex] = useState(new Date().getMonth()); // 0-11
   const [activeSummaryFilter, setActiveSummaryFilter] = useState<{ type: string; value?: string } | null>(null);
+  const [categoryEmojis, setCategoryEmojis] = useState<Record<string, string>>({});
 
   const handleSummaryFilterChange = (type: string, value?: string) => {
     if (type === "total") {
@@ -322,6 +318,7 @@ const Dashboard = () => {
     if (userId) {
       fetchDespesas();
       fetchPeriodosMensais();
+      fetchCategoryEmojis();
       aplicarFiltrosIniciais(userId);
     }
   }, [userId]);
@@ -343,29 +340,29 @@ const Dashboard = () => {
     }
   };
 
+  const fetchCategoryEmojis = async () => {
+    if (!userId) return;
+
+    try {
+      const { data, error } = await (supabase as any)
+        .from("categoria_emojis")
+        .select("*")
+        .eq("user_id", userId);
+
+      if (error) throw error;
+
+      // Convert array to Record<string, string>
+      const emojiMap: Record<string, string> = {};
+      (data || []).forEach((item: any) => {
+        emojiMap[item.categoria] = item.emoji;
+      });
+      setCategoryEmojis(emojiMap);
+    } catch (error: any) {
+      console.error("Erro ao carregar emojis das categorias:", error);
+    }
+  };
+
   const despesasFiltradas = despesas.filter((despesa) => {
-    // Filtro de responsável
-    if (responsavelFilter !== "todos" && despesa.Responsavel !== responsavelFilter) {
-      return false;
-    }
-
-    // Filtro de tipo
-    if (tipoFilter !== "todos" && despesa.Tipo !== tipoFilter) {
-      return false;
-    }
-
-    // Filtro de categoria
-    if (categoriaFilter !== "todas" && despesa.Categoria !== categoriaFilter) {
-      return false;
-    }
-
-    // Filtro de parcelas
-    if (parcelaFilter.length > 0) {
-      const totalParcelas = getTotalParcelas(despesa.Parcelas || "");
-      if (!totalParcelas) return false;
-      if (!parcelaFilter.includes(totalParcelas)) return false;
-    }
-
     // Filtro de Data
     const despesaDate = brToDate(despesa.Data);
 
@@ -746,36 +743,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <Filters
-          responsavelFilter={responsavelFilter}
-          setResponsavelFilter={setResponsavelFilter}
-          tipoFilter={tipoFilter}
-          setTipoFilter={setTipoFilter}
-          categoriaFilter={categoriaFilter}
-          setCategoriaFilter={setCategoriaFilter}
-          parcelaFilter={parcelaFilter}
-          setParcelaFilter={setParcelaFilter}
-          dataInicio={dataInicio}
-          setDataInicio={setDataInicio}
-          dataFim={dataFim}
-          setDataFim={setDataFim}
-          onMesSelecionado={setMesSelecionado}
-          anoSelecionado={anoSelecionado}
-          setAnoSelecionado={setAnoSelecionado}
-          categorias={[...new Set(despesas.map(d => d.Categoria).filter(Boolean))]}
-          responsaveis={[...new Set(despesas.map(d => d.Responsavel).filter(Boolean))]}
-          periodosMensais={periodosMensais}
-          userId={userId || ""}
-          onClearFilters={() => {
-            setResponsavelFilter("todos");
-            setTipoFilter("todos");
-            setCategoriaFilter("todas");
-            setParcelaFilter([]);
-            setDataInicio("");
-            setDataFim("");
-            setMesSelecionado(null);
-          }}
-        />
+
 
         {error && (
           <Alert variant="destructive">
@@ -808,6 +776,7 @@ const Dashboard = () => {
           onEdit={handleEdit}
           onDelete={handleDeleteClick}
           onDuplicate={handleDuplicate}
+          categoryEmojis={categoryEmojis}
         />
 
         {temMaisDespesas && (

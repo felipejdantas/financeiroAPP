@@ -16,9 +16,10 @@ interface DespesasTableProps {
   onEdit: (despesa: Despesa) => void;
   onDelete: (id: number) => void;
   onDuplicate: (despesa: Despesa) => void;
+  categoryEmojis?: Record<string, string>;
 }
 
-export const DespesasTable = ({ despesas, onEdit, onDelete, onDuplicate }: DespesasTableProps) => {
+export const DespesasTable = ({ despesas, onEdit, onDelete, onDuplicate, categoryEmojis = {} }: DespesasTableProps) => {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
@@ -36,6 +37,12 @@ export const DespesasTable = ({ despesas, onEdit, onDelete, onDuplicate }: Despe
   };
 
   const getCategoryEmoji = (categoria: string) => {
+    // First check if there's a custom emoji for this category
+    if (categoryEmojis[categoria]) {
+      return categoryEmojis[categoria];
+    }
+
+    // Fallback to hardcoded emojis
     const emojis: { [key: string]: string } = {
       "Alimentação": "🍔",
       "Transporte": "🚗",

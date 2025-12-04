@@ -31,32 +31,46 @@ export default function Settings() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <SettingsIcon className="h-5 w-5" />
-                        Períodos Mensais
-                    </CardTitle>
+                    <CardTitle>Geral</CardTitle>
                     <CardDescription>
-                        Configure os períodos de faturamento do cartão de crédito
+                        Opções gerais do sistema
                     </CardDescription>
                 </CardHeader>
-                <CardContent>
-                    <Button onClick={() => setConfigMesesOpen(true)}>
-                        Configurar Meses
-                    </Button>
-                </CardContent>
-            </Card>
+                <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-secondary/50 transition-colors">
+                        <div className="flex items-center gap-4">
+                            <div className="p-2 bg-primary/10 rounded-full">
+                                <SettingsIcon className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                                <h3 className="font-medium">Conf. Meses Crédito</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Configure os períodos de faturamento do cartão
+                                </p>
+                            </div>
+                        </div>
+                        <Button variant="outline" onClick={() => setConfigMesesOpen(true)}>
+                            Configurar
+                        </Button>
+                    </div>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Outras Configurações</CardTitle>
-                    <CardDescription>
-                        Mais opções de configuração em breve
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-muted-foreground text-center py-12">
-                        Funcionalidades adicionais em desenvolvimento...
-                    </p>
+                    {/* Placeholder para futuras configurações */}
+                    <div className="flex items-center justify-between p-4 border rounded-lg opacity-50 cursor-not-allowed">
+                        <div className="flex items-center gap-4">
+                            <div className="p-2 bg-primary/10 rounded-full">
+                                <SettingsIcon className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                                <h3 className="font-medium">Outras Configurações</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Em breve
+                                </p>
+                            </div>
+                        </div>
+                        <Button variant="outline" disabled>
+                            Em breve
+                        </Button>
+                    </div>
                 </CardContent>
             </Card>
 

@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Despesa, ResponsavelFilter, TipoFilter } from "@/types/despesa";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, AlertCircle, Plus, LogOut, Trash2, MoreVertical, BarChart3, Filter, X } from "lucide-react";
+import { RefreshCw, AlertCircle, Plus, LogOut, Trash2, MoreVertical, BarChart3, X, Smile } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,7 +16,7 @@ import {
 import { SummaryCards } from "@/components/dashboard/SummaryCards";
 import { CategoryCharts } from "@/components/dashboard/CategoryCharts";
 import { DespesasTable } from "@/components/dashboard/DespesasTable";
-import { Filters } from "@/components/dashboard/Filters";
+import { YearMonthFilter } from "@/components/dashboard/YearMonthFilter";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { DespesaForm } from "@/components/dashboard/DespesaForm";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -25,6 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import { PeriodoFaturamentoConfig } from "@/components/dashboard/PeriodoFaturamentoConfig";
 import { PeriodosMensaisManager } from "@/components/dashboard/PeriodosMensaisManager";
 import { GraficosComparativos } from "@/components/dashboard/GraficosComparativos";
+import { CategoryEmojiManager } from "@/components/dashboard/CategoryEmojiManager";
 import { format, addMonths } from "date-fns";
 
 // Funções utilitárias para conversão de datas
@@ -80,7 +81,10 @@ const Index = () => {
   const [mesSelecionado, setMesSelecionado] = useState<number | null>(null);
   const [periodosMensais, setPeriodosMensais] = useState<any[]>([]);
   const [graficosOpen, setGraficosOpen] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
+  const [emojiManagerOpen, setEmojiManagerOpen] = useState(false);
+  const [categoryEmojis, setCategoryEmojis] = useState<Record<string, string>>({});
+  const [filterYear, setFilterYear] = useState<number | null>(null);
+  const [filterMonth, setFilterMonth] = useState<number | null>(null);
 
   const fetchDespesas = async () => {
     if (!userId) return;
@@ -325,6 +329,7 @@ const Index = () => {
     if (userId) {
       fetchDespesas();
       fetchPeriodosMensais();
+      fetchCategoryEmojis();
       aplicarFiltrosIniciais(userId);
     }
   }, [userId]);
@@ -343,6 +348,28 @@ const Index = () => {
       setPeriodosMensais(data || []);
     } catch (error: any) {
       console.error("Erro ao carregar períodos mensais:", error);
+    }
+  };
+
+  const fetchCategoryEmojis = async () => {
+    if (!userId) return;
+
+    try {
+      const { data, error } = await (supabase as any)
+        .from("categoria_emojis")
+        .select("*")
+        .eq("user_id", userId);
+
+      if (error) throw error;
+
+      // Convert array to Record<string, string>
+      const emojiMap: Record<string, string> = {};
+      (data || []).forEach((item: any) => {
+        emojiMap[item.categoria] = item.emoji;
+      });
+      setCategoryEmojis(emojiMap);
+    } catch (error: any) {
+      console.error("Erro ao carregar emojis das categorias:", error);
     }
   };
 
@@ -369,36 +396,30 @@ const Index = () => {
       if (!parcelaFilter.includes(totalParcelas)) return false;
     }
 
-    // Filtro de Data
-    const despesaDate = brToDate(despesa.Data);
+    // Filtro de Ano/Mês
+    if (filterYear !== null || filterMonth !== null) {
+      const despesaDate = brToDate(despesa.Data);
+      const despesaYear = despesaDate.getFullYear();
+      const despesaMonth = despesaDate.getMonth() + 1; // getMonth() returns 0-11
 
-    // Lógica diferenciada por tipo
-    if (despesa.Tipo === "Crédito") {
-      // Cartão segue o período configurado (dataInicio/dataFim)
-      if (dataInicio) {
-        const dataInicioDate = inputToDate(dataInicio);
-        dataInicioDate.setHours(0, 0, 0, 0);
-        if (despesaDate < dataInicioDate) return false;
+      // Filter by year
+      if (filterYear !== null && despesaYear !== filterYear) {
+        return false;
       }
-      if (dataFim) {
-        const dataFimDate = inputToDate(dataFim);
-        dataFimDate.setHours(23, 59, 59, 999);
-        if (despesaDate > dataFimDate) return false;
+
+      // Filter by month (only if month is selected)
+      if (filterMonth !== null && despesaMonth !== filterMonth) {
+        return false;
       }
-    } else {
-      // Débito/Pix/Dinheiro
-      if (mesSelecionado) {
-        // Se tem mês selecionado, usa o mês civil (01 a 30/31)
-        const anoRef = dataInicio ? inputToDate(dataInicio).getFullYear() : new Date().getFullYear();
-        const inicioMes = new Date(anoRef, mesSelecionado - 1, 1);
-        inicioMes.setHours(0, 0, 0, 0);
+    }
 
-        const fimMes = new Date(anoRef, mesSelecionado, 0);
-        fimMes.setHours(23, 59, 59, 999);
+    // Filtro de Data (fallback para compatibilidade com filtros existentes)
+    if (!filterYear && !filterMonth) {
+      const despesaDate = brToDate(despesa.Data);
 
-        if (despesaDate < inicioMes || despesaDate > fimMes) return false;
-      } else {
-        // Se não tem mês selecionado (filtro manual), segue as datas do filtro
+      // Lógica diferenciada por tipo
+      if (despesa.Tipo === "Crédito") {
+        // Cartão segue o período configurado (dataInicio/dataFim)
         if (dataInicio) {
           const dataInicioDate = inputToDate(dataInicio);
           dataInicioDate.setHours(0, 0, 0, 0);
@@ -408,6 +429,31 @@ const Index = () => {
           const dataFimDate = inputToDate(dataFim);
           dataFimDate.setHours(23, 59, 59, 999);
           if (despesaDate > dataFimDate) return false;
+        }
+      } else {
+        // Débito/Pix/Dinheiro
+        if (mesSelecionado) {
+          // Se tem mês selecionado, usa o mês civil (01 a 30/31)
+          const anoRef = dataInicio ? inputToDate(dataInicio).getFullYear() : new Date().getFullYear();
+          const inicioMes = new Date(anoRef, mesSelecionado - 1, 1);
+          inicioMes.setHours(0, 0, 0, 0);
+
+          const fimMes = new Date(anoRef, mesSelecionado, 0);
+          fimMes.setHours(23, 59, 59, 999);
+
+          if (despesaDate < inicioMes || despesaDate > fimMes) return false;
+        } else {
+          // Se não tem mês selecionado (filtro manual), segue as datas do filtro
+          if (dataInicio) {
+            const dataInicioDate = inputToDate(dataInicio);
+            dataInicioDate.setHours(0, 0, 0, 0);
+            if (despesaDate < dataInicioDate) return false;
+          }
+          if (dataFim) {
+            const dataFimDate = inputToDate(dataFim);
+            dataFimDate.setHours(23, 59, 59, 999);
+            if (despesaDate > dataFimDate) return false;
+          }
         }
       }
     }
@@ -678,6 +724,10 @@ const Index = () => {
                 <DropdownMenuItem onClick={() => setPeriodoCartaoOpen(true)}>
                   Período Cartão
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setEmojiManagerOpen(true)}>
+                  <Smile className="mr-2 h-4 w-4" />
+                  Gerenciar Emojis
+                </DropdownMenuItem>
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>
                     Filtrar por Mês do Cartão
@@ -697,15 +747,7 @@ const Index = () => {
                 </DropdownMenuSub>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button
-              variant={showFilters ? "secondary" : "outline"}
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex-1 sm:flex-none"
-            >
-              <Filter className="mr-2 h-4 w-4" />
-              <span className="hidden sm:inline">{showFilters ? "Ocultar Filtros" : "Mostrar Filtros"}</span>
-              <span className="sm:hidden">Filtros</span>
-            </Button>
+
             <Button variant="outline" onClick={fetchDespesas} size="icon" className="shrink-0">
               <RefreshCw className="h-4 w-4" />
             </Button>
@@ -733,28 +775,7 @@ const Index = () => {
           </Alert>
         )}
 
-        {showFilters && (
-          <Filters
-            responsavelFilter={responsavelFilter}
-            setResponsavelFilter={setResponsavelFilter}
-            tipoFilter={tipoFilter}
-            setTipoFilter={setTipoFilter}
-            categoriaFilter={categoriaFilter}
-            setCategoriaFilter={setCategoriaFilter}
-            parcelaFilter={parcelaFilter}
-            setParcelaFilter={setParcelaFilter}
-            dataInicio={dataInicio}
-            setDataInicio={setDataInicio}
-            dataFim={dataFim}
-            setDataFim={setDataFim}
-            onMesSelecionado={setMesSelecionado}
-            categorias={[...new Set(despesas.map(d => d.Categoria).filter(Boolean))]}
-            responsaveis={[...new Set(despesas.map(d => d.Responsavel).filter(Boolean))]}
-            periodosMensais={periodosMensais}
-            userId={userId || ""}
-            onClearFilters={limparFiltros}
-          />
-        )}
+
 
         <SummaryCards despesas={despesasFiltradas} />
 
@@ -765,6 +786,7 @@ const Index = () => {
           onEdit={handleEdit}
           onDelete={handleDeleteClick}
           onDuplicate={handleDuplicate}
+          categoryEmojis={categoryEmojis}
         />
 
         {temMaisDespesas && (
@@ -843,6 +865,16 @@ const Index = () => {
               <GraficosComparativos despesas={despesasFiltradas} periodosMensais={periodosMensais} />
             </div>
           </div>
+        )}
+
+        {userId && emojiManagerOpen && (
+          <CategoryEmojiManager
+            open={emojiManagerOpen}
+            onOpenChange={setEmojiManagerOpen}
+            userId={userId}
+            categorias={[...new Set(despesas.map(d => d.Categoria).filter(Boolean))]}
+            onUpdate={fetchCategoryEmojis}
+          />
         )}
       </div>
     </div>

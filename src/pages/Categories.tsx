@@ -32,9 +32,10 @@ export default function Categories() {
     const [expenseCount, setExpenseCount] = useState<Record<string, number>>({});
     const [formOpen, setFormOpen] = useState(false);
     const [editingCategoria, setEditingCategoria] = useState<Categoria | null>(null);
-    const [formData, setFormData] = useState({ nome: "", cor: "#94a3b8", icone: "" });
+    const [formData, setFormData] = useState({ nome: "", cor: "#94a3b8", icone: "", emoji: "" });
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [deletingCategoria, setDeletingCategoria] = useState<Categoria | null>(null);
+    const [categoryEmojis, setCategoryEmojis] = useState<Record<string, string>>({});
     const { toast } = useToast();
 
     const fetchCategorias = async () => {
@@ -52,6 +53,29 @@ export default function Categories() {
 
             if (catError) throw catError;
             setCategorias(cats || []);
+
+            // Fetch emojis
+            const { data: emojis, error: emojiError } = await (supabase
+                .from("categoria_emojis" as any)
+                .select("categoria, emoji")
+                .eq("user_id", user.id)) as any;
+
+            if (emojiError) {
+                console.error("Erro ao buscar emojis:", emojiError);
+                toast({
+                    title: "Erro ao carregar emojis",
+                    description: "Não foi possível carregar os emojis. Verifique se a tabela 'categoria_emojis' existe.",
+                    variant: "destructive",
+                });
+            }
+
+            const emojiMap: Record<string, string> = {};
+            if (emojis) {
+                emojis.forEach((item: any) => {
+                    emojiMap[item.categoria] = item.emoji;
+                });
+            }
+            setCategoryEmojis(emojiMap);
 
             // Fetch usage counts
             const [cartaoResult, debitoResult] = await Promise.all([
@@ -89,7 +113,7 @@ export default function Categories() {
 
     const handleNewCategory = () => {
         setEditingCategoria(null);
-        setFormData({ nome: "", cor: "#94a3b8", icone: "" });
+        setFormData({ nome: "", cor: "#94a3b8", icone: "", emoji: "" });
         setFormOpen(true);
     };
 
@@ -98,7 +122,8 @@ export default function Categories() {
         setFormData({
             nome: categoria.nome,
             cor: categoria.cor || "#94a3b8",
-            icone: categoria.icone || ""
+            icone: categoria.icone || "",
+            emoji: categoryEmojis[categoria.nome] || ""
         });
         setFormOpen(true);
     };
@@ -125,6 +150,51 @@ export default function Categories() {
                     .eq("id", editingCategoria.id);
 
                 if (error) throw error;
+
+                // Update emoji if changed
+                if (formData.emoji) {
+                    const { error: emojiError } = await (supabase
+                        .from("categoria_emojis" as any)
+                        .upsert({
+                            user_id: user.id,
+                            categoria: formData.nome,
+                            emoji: formData.emoji
+                        }, { onConflict: 'user_id, categoria' })) as any;
+
+                    if (emojiError) {
+                        console.error("Erro ao salvar emoji:", emojiError);
+                        toast({
+                            title: "Erro ao salvar emoji",
+                            description: "Verifique se a tabela 'categoria_emojis' foi criada no Supabase.",
+                            variant: "destructive",
+                        });
+                    } else {
+                        // Optimistic update
+                        setCategoryEmojis(prev => ({
+                            ...prev,
+                            [formData.nome]: formData.emoji
+                        }));
+                    }
+                } else {
+                    // If emoji is empty, try to delete it
+                    const { error: deleteError } = await (supabase
+                        .from("categoria_emojis" as any)
+                        .delete()
+                        .eq("user_id", user.id)
+                        .eq("categoria", formData.nome)) as any;
+
+                    if (deleteError) {
+                        console.error("Erro ao remover emoji:", deleteError);
+                    } else {
+                        // Optimistic update
+                        setCategoryEmojis(prev => {
+                            const newState = { ...prev };
+                            delete newState[formData.nome];
+                            return newState;
+                        });
+                    }
+                }
+
                 toast({ title: "Categoria atualizada com sucesso!" });
             } else {
                 const { error } = await supabase
@@ -137,6 +207,33 @@ export default function Categories() {
                     }]);
 
                 if (error) throw error;
+
+                // Insert emoji if present
+                if (formData.emoji) {
+                    const { error: emojiError } = await (supabase
+                        .from("categoria_emojis" as any)
+                        .insert([{
+                            user_id: user.id,
+                            categoria: formData.nome,
+                            emoji: formData.emoji
+                        }])) as any;
+
+                    if (emojiError) {
+                        console.error("Erro ao salvar emoji:", emojiError);
+                        toast({
+                            title: "Erro ao salvar emoji",
+                            description: "Verifique se a tabela 'categoria_emojis' foi criada no Supabase.",
+                            variant: "destructive",
+                        });
+                    } else {
+                        // Optimistic update
+                        setCategoryEmojis(prev => ({
+                            ...prev,
+                            [formData.nome]: formData.emoji
+                        }));
+                    }
+                }
+
                 toast({ title: "Categoria criada com sucesso!" });
             }
 
@@ -277,8 +374,11 @@ export default function Categories() {
                     <Card key={categoria.id}>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
+                                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-secondary text-lg">
+                                    {categoryEmojis[categoria.nome] || "🏷️"}
+                                </div>
                                 <div
-                                    className="w-4 h-4 rounded-full"
+                                    className="w-3 h-3 rounded-full"
                                     style={{ backgroundColor: categoria.cor || "#3b82f6" }}
                                 />
                                 {categoria.nome}
@@ -345,6 +445,22 @@ export default function Categories() {
                                     required
                                     placeholder="Ex: Alimentação"
                                 />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="emoji">Emoji</Label>
+                                <div className="flex gap-2">
+                                    <Input
+                                        id="emoji"
+                                        value={formData.emoji}
+                                        onChange={(e) => setFormData({ ...formData, emoji: e.target.value })}
+                                        placeholder="Ex: 🍔"
+                                        className="text-2xl w-20 text-center"
+                                        maxLength={2}
+                                    />
+                                    <div className="text-sm text-muted-foreground flex items-center">
+                                        Digite um emoji ou cole aqui
+                                    </div>
+                                </div>
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="cor">Cor</Label>
