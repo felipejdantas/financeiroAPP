@@ -7,6 +7,7 @@ import { AppLayout } from "./components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import Transactions from "./pages/Transactions";
 import Categories from "./pages/Categories";
+import Planning from "./pages/Planning";
 import Scheduling from "./pages/Scheduling";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
@@ -36,6 +37,7 @@ const App = () => (
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="transactions" element={<Transactions />} />
             <Route path="categories" element={<Categories />} />
+            <Route path="planning" element={<Planning />} />
             <Route path="scheduling" element={<Scheduling />} />
             <Route path="profile" element={<Profile />} />
             <Route path="settings" element={<Settings />} />
