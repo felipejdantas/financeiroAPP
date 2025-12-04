@@ -107,7 +107,7 @@ export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias,
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Responsável</FormLabel>
-                    <Select 
+                    <Select
                       onValueChange={(value) => {
                         if (value === "__novo__") {
                           setShowNewResponsavelInput(true);
@@ -117,7 +117,7 @@ export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias,
                           setShowNewResponsavelInput(false);
                           field.onChange(value);
                         }
-                      }} 
+                      }}
                       value={showNewResponsavelInput ? "__novo__" : field.value}
                     >
                       <FormControl>
@@ -125,8 +125,8 @@ export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias,
                           <SelectValue placeholder="Selecione um responsável" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
-                        {responsaveis.map((resp) => (
+                      <SelectContent side="bottom">
+                        {[...responsaveis].sort((a, b) => a.localeCompare(b)).map((resp) => (
                           <SelectItem key={resp} value={resp}>
                             {resp}
                           </SelectItem>
@@ -162,7 +162,7 @@ export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias,
                           <SelectValue placeholder="Selecione" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent side="bottom">
                         <SelectItem value="Crédito">Crédito</SelectItem>
                         <SelectItem value="Débito">Débito</SelectItem>
                         <SelectItem value="Pix">Pix</SelectItem>
@@ -216,7 +216,7 @@ export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias,
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Categoria</FormLabel>
-                    <Select 
+                    <Select
                       onValueChange={(value) => {
                         if (value === "__nova__") {
                           setShowNewCategoryInput(true);
@@ -226,7 +226,7 @@ export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias,
                           setShowNewCategoryInput(false);
                           field.onChange(value);
                         }
-                      }} 
+                      }}
                       value={showNewCategoryInput ? "__nova__" : field.value}
                     >
                       <FormControl>
@@ -234,8 +234,8 @@ export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias,
                           <SelectValue placeholder="Selecione uma categoria" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
-                        {categorias.map((cat) => (
+                      <SelectContent side="bottom">
+                        {[...categorias].sort((a, b) => a.localeCompare(b)).map((cat) => (
                           <SelectItem key={cat} value={cat}>
                             {cat}
                           </SelectItem>
