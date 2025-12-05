@@ -65,6 +65,7 @@ const Dashboard = () => {
   const [currentMonthIndex, setCurrentMonthIndex] = useState(new Date().getMonth()); // 0-11
   const [activeSummaryFilter, setActiveSummaryFilter] = useState<{ type: string; value?: string } | null>(null);
   const [categoryEmojis, setCategoryEmojis] = useState<Record<string, string>>({});
+  const [categoriasDisponiveis, setCategoriasDisponiveis] = useState<string[]>([]);
 
   const handleSummaryFilterChange = (type: string, value?: string) => {
     if (type === "total") {
@@ -320,6 +321,7 @@ const Dashboard = () => {
       fetchDespesas();
       fetchPeriodosMensais();
       fetchCategoryEmojis();
+      fetchCategorias();
       aplicarFiltrosIniciais(userId);
     }
   }, [userId]);
@@ -360,6 +362,22 @@ const Dashboard = () => {
       setCategoryEmojis(emojiMap);
     } catch (error: any) {
       console.error("Erro ao carregar emojis das categorias:", error);
+    }
+  };
+
+  const fetchCategorias = async () => {
+    if (!userId) return;
+    try {
+      const { data, error } = await (supabase
+        .from("categorias" as any)
+        .select("nome")
+        .eq("user_id", userId)
+        .order("nome")) as any;
+
+      if (error) throw error;
+      setCategoriasDisponiveis(data?.map((c: any) => c.nome) || []);
+    } catch (error) {
+      console.error("Erro ao carregar categorias:", error);
     }
   };
 
@@ -426,7 +444,8 @@ const Dashboard = () => {
             Parcelas: despesa.Parcelas,
             Descrição: despesa["Descrição"],
             Data: despesa.Data,
-            valor: despesa.valor
+            valor: despesa.valor,
+            created_at: despesa.created_at
           })
           .eq("id", despesa.id);
 
@@ -455,7 +474,8 @@ const Dashboard = () => {
               Descrição: despesa["Descrição"],
               Data: dataParcela,
               valor: valorParcela,
-              user_id: userId
+              user_id: userId,
+              created_at: despesa.created_at
             });
           }
 
@@ -477,7 +497,8 @@ const Dashboard = () => {
               Descrição: despesa["Descrição"],
               Data: despesa.Data,
               valor: despesa.valor,
-              user_id: userId
+              user_id: userId,
+              created_at: despesa.created_at
             }]);
 
           if (error) throw error;
@@ -615,7 +636,8 @@ const Dashboard = () => {
   const handleFormSubmit = async (data: any) => {
     await handleAddOrUpdate({
       ...data,
-      id: editingDespesa?.id
+      id: editingDespesa?.id,
+      created_at: data.created_at ? new Date(data.created_at).toISOString() : undefined
     });
     handleFormClose();
   };
@@ -811,7 +833,7 @@ const Dashboard = () => {
             onOpenChange={setFormOpen}
             onSubmit={handleFormSubmit}
             despesa={editingDespesa}
-            categorias={[...new Set(despesas.map(d => d.Categoria).filter(Boolean))]}
+            categorias={categoriasDisponiveis}
             responsaveis={[...new Set(despesas.map(d => d.Responsavel).filter(Boolean))]}
             defaultResponsavel={userName}
           />

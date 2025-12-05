@@ -8,18 +8,56 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Despesa } from "@/types/despesa";
-import { Receipt, Pencil, Trash2, Copy } from "lucide-react";
+import { Receipt, Pencil, Trash2, Copy, Edit3 } from "lucide-react";
+import { useState, useEffect } from "react";
 
 interface DespesasTableProps {
   despesas: Despesa[];
   onEdit: (despesa: Despesa) => void;
   onDelete: (id: number) => void;
   onDuplicate: (despesa: Despesa) => void;
+  onBulkEditClick?: (selectedIds: number[]) => void;
   categoryEmojis?: Record<string, string>;
 }
 
-export const DespesasTable = ({ despesas, onEdit, onDelete, onDuplicate, categoryEmojis = {} }: DespesasTableProps) => {
+export const DespesasTable = ({ despesas, onEdit, onDelete, onDuplicate, onBulkEditClick, categoryEmojis = {} }: DespesasTableProps) => {
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
+  // Reset selection when despesas change
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [despesas]);
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allIds = new Set(despesas.filter(d => d.id).map(d => d.id!));
+      setSelectedIds(allIds);
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleSelectOne = (id: number, checked: boolean) => {
+    const newSelected = new Set(selectedIds);
+    if (checked) {
+      newSelected.add(id);
+    } else {
+      newSelected.delete(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const handleBulkEdit = () => {
+    if (onBulkEditClick && selectedIds.size > 0) {
+      onBulkEditClick(Array.from(selectedIds));
+    }
+  };
+
+  const allSelected = despesas.length > 0 && despesas.filter(d => d.id).every(d => selectedIds.has(d.id!));
+  const someSelected = selectedIds.size > 0 && !allSelected;
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
@@ -127,11 +165,29 @@ export const DespesasTable = ({ despesas, onEdit, onDelete, onDuplicate, categor
   return (
     <Card className="bg-card border-border shadow-sm">
       <CardHeader>
-        <div className="flex items-center gap-2">
-          <Receipt className="h-5 w-5 text-primary" />
-          <CardTitle className="text-sm md:text-base lg:text-lg text-card-foreground">
-            Todas as Despesas ({despesas.length} {despesas.length === 1 ? 'despesa' : 'despesas'})
-          </CardTitle>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Receipt className="h-5 w-5 text-primary" />
+            <CardTitle className="text-sm md:text-base lg:text-lg text-card-foreground">
+              Todas as Despesas ({despesas.length} {despesas.length === 1 ? 'despesa' : 'despesas'})
+            </CardTitle>
+          </div>
+          {selectedIds.size > 0 && (
+            <div className="flex items-center gap-2 bg-primary/10 px-3 py-1.5 rounded-lg border border-primary/20">
+              <span className="text-sm font-medium text-primary">
+                {selectedIds.size} selecionada{selectedIds.size > 1 ? 's' : ''}
+              </span>
+              <Button
+                size="sm"
+                variant="default"
+                onClick={handleBulkEdit}
+                className="h-7 gap-1"
+              >
+                <Edit3 className="h-3.5 w-3.5" />
+                Editar
+              </Button>
+            </div>
+          )}
         </div>
       </CardHeader>
       <CardContent className="p-0 md:p-6">
@@ -139,6 +195,16 @@ export const DespesasTable = ({ despesas, onEdit, onDelete, onDuplicate, categor
           <Table>
             <TableHeader>
               <TableRow className="border-border hover:bg-muted/50">
+                {onBulkEditClick && (
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={allSelected || someSelected}
+                      onCheckedChange={handleSelectAll}
+                      aria-label="Selecionar todas"
+                      className={someSelected ? "opacity-50" : ""}
+                    />
+                  </TableHead>
+                )}
                 <TableHead className="text-muted-foreground whitespace-nowrap text-[10px] md:text-xs">Data</TableHead>
                 <TableHead className="text-muted-foreground whitespace-nowrap text-[10px] md:text-xs">Descrição</TableHead>
                 <TableHead className="text-muted-foreground whitespace-nowrap text-[10px] md:text-xs hidden sm:table-cell">Responsável</TableHead>
@@ -153,6 +219,15 @@ export const DespesasTable = ({ despesas, onEdit, onDelete, onDuplicate, categor
               {despesas.length > 0 ? (
                 despesas.map((despesa, index) => (
                   <TableRow key={index} className="border-border hover:bg-muted/50">
+                    {onBulkEditClick && despesa.id && (
+                      <TableCell className="w-12">
+                        <Checkbox
+                          checked={selectedIds.has(despesa.id)}
+                          onCheckedChange={(checked) => handleSelectOne(despesa.id!, checked as boolean)}
+                          aria-label={`Selecionar despesa ${despesa.Descrição}`}
+                        />
+                      </TableCell>
+                    )}
                     <TableCell className="text-foreground font-medium text-[10px] md:text-xs whitespace-nowrap">
                       {formatDate(despesa.Data)}
                     </TableCell>
@@ -202,7 +277,7 @@ export const DespesasTable = ({ despesas, onEdit, onDelete, onDuplicate, categor
               ) : (
                 <TableRow>
                   <TableCell
-                    colSpan={8}
+                    colSpan={onBulkEditClick ? 9 : 8}
                     className="text-center text-muted-foreground h-24"
                   >
                     Nenhuma despesa encontrada

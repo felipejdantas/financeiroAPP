@@ -18,6 +18,7 @@ const despesaSchema = z.object({
   Parcelas: z.string().min(1, "Parcelas é obrigatório"),
   valor: z.number().positive("Valor deve ser positivo"),
   Categoria: z.string().min(1, "Categoria é obrigatória").max(100, "Categoria muito longa"),
+  created_at: z.string().optional(),
 });
 
 type DespesaFormValues = z.infer<typeof despesaSchema>;
@@ -48,6 +49,7 @@ export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias,
       Parcelas: "A vista",
       valor: 0,
       Categoria: "",
+      created_at: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
     },
   });
 
@@ -61,6 +63,7 @@ export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias,
         Parcelas: despesa.Parcelas,
         valor: despesa.valor,
         Categoria: despesa.Categoria,
+        created_at: despesa.created_at ? format(new Date(despesa.created_at), "yyyy-MM-dd'T'HH:mm") : format(new Date(), "yyyy-MM-dd'T'HH:mm"),
       });
       setShowNewCategoryInput(false);
       setNewCategory("");
@@ -75,6 +78,7 @@ export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias,
         Parcelas: "A vista",
         valor: 0,
         Categoria: "",
+        created_at: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
       });
       setShowNewCategoryInput(false);
       setNewCategory("");
@@ -182,6 +186,23 @@ export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias,
                     <FormLabel>Data</FormLabel>
                     <FormControl>
                       <Input {...field} placeholder="DD/MM/YYYY" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="created_at"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Data de Criação (Ordenação)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="datetime-local"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

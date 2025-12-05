@@ -17,9 +17,10 @@ interface ExportButtonProps {
     tipo: string;
     categoria: string;
   };
+  simple?: boolean;
 }
 
-export const ExportButton = ({ despesas, filtrosAtivos }: ExportButtonProps) => {
+export const ExportButton = ({ despesas, filtrosAtivos, simple = false }: ExportButtonProps) => {
   const exportToPDF = (groupBy: "usuario" | "tipo" | "categoria" | "data" | "todas") => {
     try {
       const doc = new jsPDF();
@@ -287,6 +288,15 @@ export const ExportButton = ({ despesas, filtrosAtivos }: ExportButtonProps) => 
       alert("Ocorreu um erro ao gerar o PDF. Verifique o console para mais detalhes.");
     }
   };
+
+  if (simple) {
+    return (
+      <Button variant="outline" size="sm" className="gap-2" onClick={() => exportToPDF("todas")}>
+        <Download className="h-4 w-4" />
+        Exportar PDF
+      </Button>
+    );
+  }
 
   return (
     <DropdownMenu>

@@ -8,6 +8,7 @@ import { Filters } from "@/components/dashboard/Filters";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { DespesasTable } from "@/components/dashboard/DespesasTable";
 import { DespesaForm } from "@/components/dashboard/DespesaForm";
+import { BulkEditDialog, BulkEditUpdates } from "@/components/dashboard/BulkEditDialog";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { format, addMonths } from "date-fns";
@@ -60,6 +61,9 @@ export default function Transactions() {
     const [anoSelecionado, setAnoSelecionado] = useState<number>(new Date().getFullYear());
     const [periodosMensais, setPeriodosMensais] = useState<any[]>([]);
     const [categoryEmojis, setCategoryEmojis] = useState<Record<string, string>>({});
+    const [categoriasDisponiveis, setCategoriasDisponiveis] = useState<string[]>([]);
+    const [bulkEditOpen, setBulkEditOpen] = useState(false);
+    const [selectedExpenseIds, setSelectedExpenseIds] = useState<number[]>([]);
 
     const fetchDespesas = async () => {
         if (!userId) return;
@@ -139,6 +143,22 @@ export default function Transactions() {
         }
     };
 
+    const fetchCategorias = async () => {
+        if (!userId) return;
+        try {
+            const { data, error } = await (supabase
+                .from("categorias" as any)
+                .select("nome")
+                .eq("user_id", userId)
+                .order("nome")) as any;
+
+            if (error) throw error;
+            setCategoriasDisponiveis(data?.map((c: any) => c.nome) || []);
+        } catch (error) {
+            console.error("Erro ao carregar categorias:", error);
+        }
+    };
+
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
             if (session?.user) {
@@ -164,6 +184,7 @@ export default function Transactions() {
             fetchDespesas();
             fetchPeriodosMensais();
             fetchCategoryEmojis();
+            fetchCategorias();
             loadUserProfile(userId);
         }
     }, [userId]);
@@ -255,7 +276,8 @@ export default function Transactions() {
                         Parcelas: despesa.Parcelas,
                         Descrição: despesa["Descrição"],
                         Data: despesa.Data,
-                        valor: despesa.valor
+                        valor: despesa.valor,
+                        created_at: despesa.created_at
                     })
                     .eq("id", despesa.id);
 
@@ -282,7 +304,8 @@ export default function Transactions() {
                             Descrição: despesa["Descrição"],
                             Data: dataParcela,
                             valor: valorParcela,
-                            user_id: userId
+                            user_id: userId,
+                            created_at: despesa.created_at
                         });
                     }
 
@@ -303,7 +326,8 @@ export default function Transactions() {
                             Descrição: despesa["Descrição"],
                             Data: despesa.Data,
                             valor: despesa.valor,
-                            user_id: userId
+                            user_id: userId,
+                            created_at: despesa.created_at
                         }]);
 
                     if (error) throw error;
@@ -414,12 +438,119 @@ export default function Transactions() {
     const handleFormSubmit = async (data: any) => {
         await handleAddOrUpdate({
             ...data,
-            id: editingDespesa?.id
+            id: editingDespesa?.id,
+            created_at: data.created_at ? new Date(data.created_at).toISOString() : undefined
         });
         handleFormClose();
     };
 
-    const despesasOrdenadas = [...despesasFiltradas].sort((a, b) => (b.id || 0) - (a.id || 0));
+    const handleBulkEditClick = (selectedIds: number[]) => {
+        setSelectedExpenseIds(selectedIds);
+        setBulkEditOpen(true);
+    };
+
+    const handleBulkEditApply = async (updates: BulkEditUpdates) => {
+        if (!userId || selectedExpenseIds.length === 0) return;
+
+        try {
+            const selectedDespesas = despesas.filter(d => d.id && selectedExpenseIds.includes(d.id));
+            const cartaoDespesas = selectedDespesas.filter(d => d.Tipo === "Crédito");
+            const debitoDespesas = selectedDespesas.filter(d => d.Tipo !== "Crédito");
+
+            const updateData: any = {};
+            if (updates.categoria) updateData.Categoria = updates.categoria;
+            if (updates.responsavel) updateData.Responsavel = updates.responsavel;
+            if (updates.created_at) updateData.created_at = updates.created_at;
+
+            const needsTableChange = updates.tipo && selectedDespesas.some(d =>
+                (updates.tipo === "Crédito" && d.Tipo !== "Crédito") ||
+                (updates.tipo !== "Crédito" && d.Tipo === "Crédito")
+            );
+
+            if (needsTableChange && updates.tipo) {
+                for (const despesa of selectedDespesas) {
+                    const currentTable = despesa.Tipo === "Crédito" ? "Financeiro Cartão" : "Financeiro Debito";
+                    const targetTable = updates.tipo === "Crédito" ? "Financeiro Cartão" : "Financeiro Debito";
+
+                    if (currentTable !== targetTable) {
+                        const newData = {
+                            Responsavel: updates.responsavel || despesa.Responsavel,
+                            Tipo: updates.tipo,
+                            Categoria: updates.categoria || despesa.Categoria,
+                            Parcelas: despesa.Parcelas,
+                            Descrição: despesa.Descrição,
+                            Data: despesa.Data,
+                            valor: despesa.valor,
+                            user_id: userId,
+                            created_at: updates.created_at || despesa.created_at
+                        };
+
+                        const { error: insertError } = await supabase.from(targetTable).insert([newData]);
+                        if (insertError) throw insertError;
+
+                        const { error: deleteError } = await supabase.from(currentTable).delete().eq("id", despesa.id!);
+                        if (deleteError) throw deleteError;
+                    } else {
+                        const updates_local: any = {};
+                        if (updates.categoria) updates_local.Categoria = updates.categoria;
+                        if (updates.responsavel) updates_local.Responsavel = updates.responsavel;
+                        if (updates.tipo) updates_local.Tipo = updates.tipo;
+                        if (updates.created_at) updates_local.created_at = updates.created_at;
+
+                        const { error } = await supabase
+                            .from(currentTable)
+                            .update(updates_local)
+                            .eq("id", despesa.id!);
+                        if (error) throw error;
+                    }
+                }
+            } else {
+                if (updates.tipo) updateData.Tipo = updates.tipo;
+
+                if (Object.keys(updateData).length > 0) {
+                    if (cartaoDespesas.length > 0) {
+                        const cartaoIds = cartaoDespesas.map(d => d.id!);
+                        const { error } = await supabase
+                            .from("Financeiro Cartão")
+                            .update(updateData)
+                            .in("id", cartaoIds);
+                        if (error) throw error;
+                    }
+
+                    if (debitoDespesas.length > 0) {
+                        const debitoIds = debitoDespesas.map(d => d.id!);
+                        const { error } = await supabase
+                            .from("Financeiro Debito")
+                            .update(updateData)
+                            .in("id", debitoIds);
+                        if (error) throw error;
+                    }
+                }
+            }
+
+            toast({
+                title: "Atualização em massa concluída!",
+                description: `${selectedExpenseIds.length} despesa(s) atualizada(s) com sucesso.`,
+            });
+
+            fetchDespesas();
+            setBulkEditOpen(false);
+            setSelectedExpenseIds([]);
+        } catch (error: any) {
+            console.error("Erro ao atualizar despesas em massa:", error);
+            toast({
+                title: "Erro ao atualizar despesas",
+                description: error.message,
+                variant: "destructive",
+            });
+        }
+    };
+
+    const despesasOrdenadas = [...despesasFiltradas].sort((a, b) => {
+        const dateA = new Date(a.created_at || 0).getTime();
+        const dateB = new Date(b.created_at || 0).getTime();
+        return dateB - dateA || (b.id || 0) - (a.id || 0);
+    });
     const despesasVisiveis = despesasOrdenadas.slice(0, registrosMostrados);
     const temMaisDespesas = despesasOrdenadas.length > registrosMostrados;
 
@@ -444,6 +575,7 @@ export default function Transactions() {
                             tipo: tipoFilter,
                             categoria: categoriaFilter
                         }}
+                        simple={true}
                     />
                     <Button variant="outline" onClick={fetchDespesas} size="icon">
                         <RefreshCw className="h-4 w-4" />
@@ -479,6 +611,7 @@ export default function Transactions() {
                 onEdit={handleEdit}
                 onDelete={handleDeleteClick}
                 onDuplicate={handleDuplicate}
+                onBulkEditClick={handleBulkEditClick}
                 categoryEmojis={categoryEmojis}
             />
 
@@ -503,7 +636,7 @@ export default function Transactions() {
                     onOpenChange={setFormOpen}
                     onSubmit={handleFormSubmit}
                     despesa={editingDespesa}
-                    categorias={[...new Set(despesas.map(d => d.Categoria).filter(Boolean))]}
+                    categorias={categoriasDisponiveis}
                     responsaveis={[...new Set(despesas.map(d => d.Responsavel).filter(Boolean))]}
                     defaultResponsavel={userName}
                 />
@@ -525,6 +658,15 @@ export default function Transactions() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            <BulkEditDialog
+                open={bulkEditOpen}
+                onOpenChange={setBulkEditOpen}
+                onApply={handleBulkEditApply}
+                selectedCount={selectedExpenseIds.length}
+                categorias={categoriasDisponiveis}
+                responsaveis={[...new Set(despesas.map(d => d.Responsavel).filter(Boolean))]}
+            />
         </div>
     );
 }
