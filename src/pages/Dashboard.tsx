@@ -629,7 +629,11 @@ const Dashboard = () => {
     }
   });
 
-  const despesasOrdenadas = [...despesasExibidas].sort((a, b) => (b.id || 0) - (a.id || 0));
+  const despesasOrdenadas = [...despesasExibidas].sort((a, b) => {
+    const dateA = new Date(a.created_at || 0).getTime();
+    const dateB = new Date(b.created_at || 0).getTime();
+    return dateB - dateA || (b.id || 0) - (a.id || 0);
+  });
   const despesasVisiveis = despesasOrdenadas.slice(0, registrosMostrados);
   const temMaisDespesas = despesasOrdenadas.length > registrosMostrados;
 
