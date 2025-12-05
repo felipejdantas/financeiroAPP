@@ -22,6 +22,14 @@ interface ExportButtonProps {
 
 export const ExportButton = ({ despesas, filtrosAtivos, simple = false }: ExportButtonProps) => {
   const exportToPDF = (groupBy: "usuario" | "tipo" | "categoria" | "data" | "todas") => {
+    console.log("Iniciando exportação PDF...", { groupBy, despesasCount: despesas?.length });
+
+    if (!despesas || !Array.isArray(despesas)) {
+      console.error("Dados de despesas inválidos:", despesas);
+      alert("Erro: Dados de despesas inválidos para exportação.");
+      return;
+    }
+
     try {
       const doc = new jsPDF();
 
@@ -32,15 +40,15 @@ export const ExportButton = ({ despesas, filtrosAtivos, simple = false }: Export
       // Informações dos filtros
       doc.setFontSize(10);
       let yPos = 30;
-      if (filtrosAtivos.responsavel !== "todos") {
+      if (filtrosAtivos?.responsavel && filtrosAtivos.responsavel !== "todos") {
         doc.text(`Responsável: ${filtrosAtivos.responsavel}`, 14, yPos);
         yPos += 5;
       }
-      if (filtrosAtivos.tipo !== "todos") {
+      if (filtrosAtivos?.tipo && filtrosAtivos.tipo !== "todos") {
         doc.text(`Tipo: ${filtrosAtivos.tipo}`, 14, yPos);
         yPos += 5;
       }
-      if (filtrosAtivos.categoria !== "todas") {
+      if (filtrosAtivos?.categoria && filtrosAtivos.categoria !== "todas") {
         doc.text(`Categoria: ${filtrosAtivos.categoria}`, 14, yPos);
         yPos += 5;
       }
@@ -282,10 +290,22 @@ export const ExportButton = ({ despesas, filtrosAtivos, simple = false }: Export
         );
       }
 
-      doc.save(`relatorio-despesas-${groupBy}-${new Date().toISOString().split("T")[0]}.pdf`);
-    } catch (error) {
+      // Método manual de salvamento para garantir nome e extensão
+      const filename = `relatorio-despesas-${groupBy}-${new Date().toISOString().split("T")[0]}.pdf`;
+      const blob = doc.output('blob');
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      console.log("Exportação concluída com sucesso:", filename);
+    } catch (error: any) {
       console.error("Erro ao gerar PDF:", error);
-      alert("Ocorreu um erro ao gerar o PDF. Verifique o console para mais detalhes.");
+      alert(`Erro ao gerar o PDF: ${error.message || error}`);
     }
   };
 
