@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Despesa, ResponsavelFilter, TipoFilter } from "@/types/despesa";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Plus } from "lucide-react";
+import { RefreshCw, Plus, Filter } from "lucide-react";
 import { Filters } from "@/components/dashboard/Filters";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { DespesasTable } from "@/components/dashboard/DespesasTable";
@@ -64,6 +64,8 @@ export default function Transactions() {
     const [categoriasDisponiveis, setCategoriasDisponiveis] = useState<string[]>([]);
     const [bulkEditOpen, setBulkEditOpen] = useState(false);
     const [selectedExpenseIds, setSelectedExpenseIds] = useState<number[]>([]);
+
+    const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
     const fetchDespesas = async () => {
         if (!userId) return;
@@ -564,6 +566,13 @@ export default function Transactions() {
                     </p>
                 </div>
                 <div className="flex gap-2">
+                    <Button
+                        variant={isFiltersOpen ? "secondary" : "outline"}
+                        onClick={() => setIsFiltersOpen(!isFiltersOpen)}
+                    >
+                        <Filter className="mr-2 h-4 w-4" />
+                        Filtros
+                    </Button>
                     <Button onClick={() => setFormOpen(true)}>
                         <Plus className="mr-2 h-4 w-4" />
                         Nova Despesa
@@ -583,28 +592,30 @@ export default function Transactions() {
                 </div>
             </div>
 
-            <Filters
-                responsavelFilter={responsavelFilter}
-                setResponsavelFilter={setResponsavelFilter}
-                tipoFilter={tipoFilter}
-                setTipoFilter={setTipoFilter}
-                categoriaFilter={categoriaFilter}
-                setCategoriaFilter={setCategoriaFilter}
-                parcelaFilter={parcelaFilter}
-                setParcelaFilter={setParcelaFilter}
-                dataInicio={dataInicio}
-                setDataInicio={setDataInicio}
-                dataFim={dataFim}
-                setDataFim={setDataFim}
-                onMesSelecionado={setMesSelecionado}
-                anoSelecionado={anoSelecionado}
-                setAnoSelecionado={setAnoSelecionado}
-                categorias={[...new Set(despesas.map(d => d.Categoria).filter(Boolean))]}
-                responsaveis={[...new Set(despesas.map(d => d.Responsavel).filter(Boolean))]}
-                periodosMensais={periodosMensais}
-                userId={userId || ""}
-                onClearFilters={limparFiltros}
-            />
+            {isFiltersOpen && (
+                <Filters
+                    responsavelFilter={responsavelFilter}
+                    setResponsavelFilter={setResponsavelFilter}
+                    tipoFilter={tipoFilter}
+                    setTipoFilter={setTipoFilter}
+                    categoriaFilter={categoriaFilter}
+                    setCategoriaFilter={setCategoriaFilter}
+                    parcelaFilter={parcelaFilter}
+                    setParcelaFilter={setParcelaFilter}
+                    dataInicio={dataInicio}
+                    setDataInicio={setDataInicio}
+                    dataFim={dataFim}
+                    setDataFim={setDataFim}
+                    onMesSelecionado={setMesSelecionado}
+                    anoSelecionado={anoSelecionado}
+                    setAnoSelecionado={setAnoSelecionado}
+                    categorias={[...new Set(despesas.map(d => d.Categoria).filter(Boolean))]}
+                    responsaveis={[...new Set(despesas.map(d => d.Responsavel).filter(Boolean))]}
+                    periodosMensais={periodosMensais}
+                    userId={userId || ""}
+                    onClearFilters={limparFiltros}
+                />
+            )}
 
             <DespesasTable
                 despesas={despesasVisiveis}
