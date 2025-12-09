@@ -158,12 +158,12 @@ export const FixedCosts = () => {
                 .from(tableName)
                 .insert([{
                     user_id: user.id,
-                    Responsavel: "Sistema", // Or prompt user? defaulting to System for auto-generated
+                    Responsavel: "Sistema",
                     Tipo: payData.method,
                     Categoria: selectedCost.category,
                     Parcelas: "A vista",
                     Descrição: `${selectedCost.title} (Custo Fixo)`,
-                    Data: format(parseISO(payData.date), "dd/MM/yyyy"), // Format to BR
+                    Data: format(parseISO(payData.date), "dd/MM/yyyy"),
                     valor: parseFloat(payData.amount),
                     created_at: new Date().toISOString()
                 }]);
@@ -211,7 +211,7 @@ export const FixedCosts = () => {
     return (
         <div className="space-y-6 animate-fade-in">
             <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
+                <h1 className="text-3xl font-bold text-card-foreground">
                     Custos Fixos
                 </h1>
                 <Button onClick={() => { resetForm(); setIsAddOpen(true); }}>
@@ -240,7 +240,12 @@ export const FixedCosts = () => {
                                             R$ {cost.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                         </div>
                                         <div className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
-                                            <AlertCircle className="h-3 w-3" /> Dia de vencimento: {cost.due_day}
+                                            <AlertCircle className="h-3 w-3" />
+                                            {status.status === 'paid' ? (
+                                                <span>Próximo vencimento: {format(new Date(new Date().getFullYear(), new Date().getMonth() + 1, cost.due_day), "dd/MM/yyyy")}</span>
+                                            ) : (
+                                                <span>Vencimento: {format(new Date(new Date().getFullYear(), new Date().getMonth(), cost.due_day), "dd/MM/yyyy")}</span>
+                                            )}
                                         </div>
                                     </div>
 
@@ -335,7 +340,11 @@ export const FixedCosts = () => {
                         <div className="grid gap-2">
                             <Label>Valor a pagar</Label>
                             <Input type="number" value={payData.amount} onChange={(e) => setPayData({ ...payData, amount: e.target.value })} />
+                            <p className="text-xs text-muted-foreground">
+                                O valor original era R$ {selectedCost?.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </p>
                         </div>
+
                         <div className="grid gap-2">
                             <Label>Data do Pagamento</Label>
                             <Input type="date" value={payData.date} onChange={(e) => setPayData({ ...payData, date: e.target.value })} />
