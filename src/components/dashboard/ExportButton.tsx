@@ -290,19 +290,8 @@ export const ExportButton = ({ despesas, filtrosAtivos, simple = false }: Export
         );
       }
 
-      // Método manual de salvamento para garantir nome e extensão
-      const filename = `relatorio-despesas-${groupBy}-${new Date().toISOString().split("T")[0]}.pdf`;
-      const blob = doc.output('blob');
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-      console.log("Exportação concluída com sucesso:", filename);
+      doc.save(`relatorio-despesas-${groupBy}-${new Date().toISOString().split("T")[0]}.pdf`);
+      console.log("Exportação concluída com sucesso");
     } catch (error: any) {
       console.error("Erro ao gerar PDF:", error);
       alert(`Erro ao gerar o PDF: ${error.message || error}`);
