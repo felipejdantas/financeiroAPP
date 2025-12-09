@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings as SettingsIcon } from "lucide-react";
+import { Settings as SettingsIcon, Palette } from "lucide-react";
+import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import { PeriodosMensaisManager } from "@/components/dashboard/PeriodosMensaisManager";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -82,6 +83,32 @@ export default function Settings() {
                     onOpenChange={setConfigMesesOpen}
                 />
             )}
+
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Aparência</CardTitle>
+                    <CardDescription>
+                        Personalize o tema e as cores do sistema
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex items-center gap-4">
+                            <div className="p-2 bg-primary/10 rounded-full">
+                                <Palette className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                                <h3 className="font-medium">Tema do Sistema</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Alterne entre os modos claro/escuro e escolha a cor de destaque
+                                </p>
+                            </div>
+                        </div>
+                        <ThemeSwitcher />
+                    </div>
+                </CardContent>
+            </Card>
         </div>
     );
 }

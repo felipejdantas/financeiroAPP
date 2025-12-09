@@ -111,8 +111,8 @@ export function BudgetVsActual({ currentMonth, currentYear, userId }: BudgetVsAc
 
     const totalPercentage = totalBudget > 0 ? Math.min((totalActual / totalBudget) * 100, 100) : 0;
     const chartData = [
-        { name: "Used", value: totalActual, color: "#f97316" }, // Orange-500
-        { name: "Remaining", value: Math.max(totalBudget - totalActual, 0), color: "#e2e8f0" } // Slate-200
+        { name: "Used", value: totalActual, color: "hsl(var(--primary))" }, // Theme Primary
+        { name: "Remaining", value: Math.max(totalBudget - totalActual, 0), color: "hsl(var(--muted))" } // Theme Muted
     ];
 
     if (loading) return <div className="h-64 flex items-center justify-center">Carregando...</div>;
@@ -146,7 +146,7 @@ export function BudgetVsActual({ currentMonth, currentYear, userId }: BudgetVsAc
                                 <Progress
                                     value={Math.min(item.percentage, 100)}
                                     className="h-2"
-                                    indicatorClassName={item.actual > item.budget ? "bg-red-500" : "bg-orange-500"}
+                                    indicatorClassName={item.actual > item.budget ? "bg-destructive" : "bg-primary"}
                                 />
                             </div>
                         ))}
