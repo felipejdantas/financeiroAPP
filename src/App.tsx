@@ -11,6 +11,7 @@ import Planning from "./pages/Planning";
 import Scheduling from "./pages/Scheduling";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
+import { FixedCosts } from "./pages/FixedCosts";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -40,6 +41,7 @@ const App = () => (
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="transactions" element={<Transactions />} />
               <Route path="categories" element={<Categories />} />
+              <Route path="fixed-costs" element={<FixedCosts />} />
               <Route path="planning" element={<Planning />} />
               <Route path="scheduling" element={<Scheduling />} />
               <Route path="profile" element={<Profile />} />

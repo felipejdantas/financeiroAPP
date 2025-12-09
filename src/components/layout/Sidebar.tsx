@@ -11,7 +11,8 @@ import {
     Settings,
     LogOut,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
+    Clock
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -25,6 +26,7 @@ const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: Home },
     { name: "Transações", href: "/transactions", icon: CreditCard },
     { name: "Categorias", href: "/categories", icon: Tag },
+    { name: "Custos Fixos", href: "/fixed-costs", icon: Clock },
     { name: "Planejamento", href: "/planning", icon: Target },
     { name: "Agendamentos", href: "/scheduling", icon: Calendar },
     { name: "Perfil", href: "/profile", icon: User },

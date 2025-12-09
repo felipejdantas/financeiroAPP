@@ -1,5 +1,6 @@
 import { Outlet } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
+import { Notifications } from "@/components/Notifications";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
@@ -28,8 +29,11 @@ export const AppLayout = () => {
             </Sheet>
 
             {/* Main Content */}
-            <main className="flex-1 overflow-y-auto">
-                <div className="container mx-auto p-4 lg:p-8">
+            <main className="flex-1 flex flex-col overflow-hidden">
+                <header className="h-14 lg:h-16 border-b border-border flex items-center justify-end px-4 lg:px-8 bg-card">
+                    <Notifications />
+                </header>
+                <div className="flex-1 overflow-y-auto p-4 lg:p-8">
                     <Outlet />
                 </div>
             </main>
