@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Check, AlertCircle, Trash2, Edit } from "lucide-react";
+import { Plus, Check, AlertCircle, Trash2, Edit, RefreshCw } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +19,8 @@ interface FixedCost {
     category: string;
     due_day: number;
     last_paid_date?: string;
+    auto_generate?: boolean;
+    payment_method?: string;
 }
 
 export const FixedCosts = () => {
@@ -28,6 +30,7 @@ export const FixedCosts = () => {
     const [isPayOpen, setIsPayOpen] = useState(false);
     const [selectedCost, setSelectedCost] = useState<FixedCost | null>(null);
     const [categorias, setCategorias] = useState<string[]>([]);
+    const [isGenerating, setIsGenerating] = useState(false);
     const { toast } = useToast();
 
     // Form States
@@ -36,7 +39,9 @@ export const FixedCosts = () => {
         amount: "",
         category: "",
         due_day: "",
-        description: ""
+        description: "",
+        auto_generate: true,
+        payment_method: "Débito"
     });
 
     const [payData, setPayData] = useState({
@@ -96,43 +101,164 @@ export const FixedCosts = () => {
                 amount: parseFloat(formData.amount),
                 category: formData.category,
                 due_day: parseInt(formData.due_day),
-                description: formData.description
+                description: formData.description,
+                auto_generate: false, // BYPASS DB TRIGGER enforced
+                payment_method: formData.payment_method
             };
+
+            let savedCostId: number;
+            let savedCostData: any = { ...payload };
 
             if (selectedCost) {
                 // Update
+                // 1. DELETE all existing pending expenses for this cost (to ensure full sync of changes)
+                await supabase.from("Financeiro Cartão").delete().eq("fixed_cost_id", selectedCost.id).eq("status", "pendente");
+                await supabase.from("Financeiro Debito").delete().eq("fixed_cost_id", selectedCost.id).eq("status", "pendente");
+
+                // 2. Update the definition
                 const { error } = await supabase
                     .from("fixed_costs" as any)
                     .update(payload)
                     .eq("id", selectedCost.id);
                 if (error) throw error;
-                toast({ title: "Custo fixo atualizado!" });
+                savedCostId = selectedCost.id;
+                savedCostData.id = savedCostId;
+                toast({ title: "Custo fixo atualizado e pendências sincronizadas!" });
             } else {
                 // Insert
-                const { error } = await supabase
+                const { data, error } = await supabase
                     .from("fixed_costs" as any)
-                    .insert([payload]);
+                    .insert([payload])
+                    .select()
+                    .single();
+
                 if (error) throw error;
+                savedCostId = data.id;
+                savedCostData.id = savedCostId;
                 toast({ title: "Custo fixo criado!" });
+            }
+
+            // MANUAL GENERATION (Frontend safe logic)
+            // Works for both Insert and Update (since we deleted pending on update above)
+            if (formData.auto_generate) {
+                await handleAutoGenerateInFrontend(user.id, {
+                    ...savedCostData,
+                    auto_generate: true
+                });
             }
 
             setIsAddOpen(false);
             fetchCosts();
             resetForm();
         } catch (error: any) {
+            console.error("Error saving:", error);
             toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
         }
     };
 
-    const handleDelete = async (id: number) => {
-        if (!confirm("Tem certeza que deseja excluir este custo fixo?")) return;
+    // --- LOGICA DE GERAÇÃO (FRONTEND) ---
+    // Agora gera 12 meses para frente garantido
+    const handleAutoGenerateInFrontend = async (userId: string, cost: any) => {
         try {
+            const today = new Date();
+            // Começa do mês ATUAL
+            let baseDate = new Date(today.getFullYear(), today.getMonth(), 1);
+
+            // Loop para gerar 24 meses (2 anos) para garantir cobertura total
+            for (let i = 0; i < 24; i++) {
+                let targetDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, 1);
+
+                // Safe Day Logic
+                const lastDayOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0).getDate();
+                const safeDay = Math.min(cost.due_day, lastDayOfMonth);
+                targetDate.setDate(safeDay);
+
+                // Formatamos a data para query e para match
+                // Obs: Banco supõe DD/MM/YYYY padrão string no app atual
+                const dateStr = format(targetDate, "dd/MM/yyyy");
+                const monthYearStr = format(targetDate, "MM/yyyy");
+
+                // Busca duplicata (Pendente ou Pago)
+                const tableName = cost.payment_method === 'Crédito' ? 'Financeiro Cartão' : 'Financeiro Debito';
+
+                // Busca se já existe algum item com esse fixed_cost_id e essa data (mês/ano)
+                // Usando ILIKE para achar '/MM/yyyy' na string de data
+                const { data: existing } = await supabase
+                    .from(tableName)
+                    .select('id')
+                    .eq('fixed_cost_id', cost.id)
+                    .ilike('Data', `%/${monthYearStr}`);
+
+                if (existing && existing.length > 0) {
+                    continue; // Pula esse mês, já tem registro (pendente ou pago)
+                }
+
+                // Inserir Pendência
+                await supabase
+                    .from(tableName)
+                    .insert({
+                        user_id: userId,
+                        "Responsavel": 'Sistema',
+                        "Tipo": cost.payment_method,
+                        "Categoria": cost.category,
+                        "Parcelas": 'A vista',
+                        "Descrição": `${cost.title} (Custo Fixo)`,
+                        "Data": dateStr,
+                        "valor": cost.amount,
+                        "status": 'pendente',
+                        "fixed_cost_id": cost.id,
+                        "created_at": new Date().toISOString()
+                    });
+            }
+
+        } catch (e) {
+            console.error("Frontend Auto-Gen error", e);
+        }
+    };
+
+    const handleDelete = async (id: number) => {
+        if (!confirm("Tem certeza que deseja excluir este custo fixo? Isso removerá também as cobranças pendentes geradas para ele.")) return;
+        try {
+            // 1. Delete associated PENDING expenses first
+            // We verify both tables just in case
+            await supabase.from("Financeiro Cartão").delete().eq("fixed_cost_id", id).eq("status", "pendente");
+            await supabase.from("Financeiro Debito").delete().eq("fixed_cost_id", id).eq("status", "pendente");
+
+            // 2. Delete the fixed cost definition
             const { error } = await supabase.from("fixed_costs" as any).delete().eq("id", id);
+
             if (error) throw error;
-            toast({ title: "Custo excluído" });
+            toast({ title: "Custo fixo e pendências excluídos" });
             fetchCosts();
         } catch (error) {
+            console.error("Error deleting:", error);
             toast({ title: "Erro ao excluir", variant: "destructive" });
+        }
+    };
+
+    const handleGenerateFutureExpenses = async () => {
+        setIsGenerating(true);
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error("No user found");
+
+            // Loop por TODOS os custos fixos existentes e gera para cada um
+            for (const cost of costs) {
+                if (cost.auto_generate !== false) { // Se não tiver explicitamente desligado
+                    await handleAutoGenerateInFrontend(user.id, cost);
+                }
+            }
+
+            toast({
+                title: "Geração Concluída!",
+                description: "Verificação de 12 meses realizada com sucesso.",
+            });
+            fetchCosts();
+        } catch (error: any) {
+            console.error("Error generating future expenses:", error);
+            toast({ title: "Erro ao gerar", description: error.message });
+        } finally {
+            setIsGenerating(false);
         }
     };
 
@@ -152,7 +278,7 @@ export const FixedCosts = () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error("No user found");
 
-            // 1. Insert into expenses
+            // 1. Insert into expenses (PAGO)
             const tableName = payData.method === "Crédito" ? "Financeiro Cartão" : "Financeiro Debito";
             const { error: insertError } = await supabase
                 .from(tableName)
@@ -165,12 +291,32 @@ export const FixedCosts = () => {
                     Descrição: `${selectedCost.title} (Custo Fixo)`,
                     Data: format(parseISO(payData.date), "dd/MM/yyyy"),
                     valor: parseFloat(payData.amount),
+                    fixed_cost_id: selectedCost.id, // VINCULO IMPORTANTE
                     created_at: new Date().toISOString()
                 }]);
 
             if (insertError) throw insertError;
 
-            // 2. Update last_paid_date
+            // 2. Procurar e Remover a pendência deste mês (Lógica de Limpeza Frontend)
+            // A data do pagamento define qual mês estamos pagando.
+            const payDate = parseISO(payData.date);
+            const monthStr = format(payDate, 'MM/yyyy');
+
+            // Remove do Cartão (se houver pendencia lá)
+            await supabase.from("Financeiro Cartão")
+                .delete()
+                .eq('fixed_cost_id', selectedCost.id)
+                .eq('status', 'pendente')
+                .ilike('Data', `%/${monthStr}`);
+
+            // Remove do Débito
+            await supabase.from("Financeiro Debito")
+                .delete()
+                .eq('fixed_cost_id', selectedCost.id)
+                .eq('status', 'pendente')
+                .ilike('Data', `%/${monthStr}`);
+
+            // 3. Update last_paid_date in Fixed Cost def
             const { error: updateError } = await supabase
                 .from("fixed_costs" as any)
                 .update({ last_paid_date: payData.date })
@@ -178,16 +324,29 @@ export const FixedCosts = () => {
 
             if (updateError) throw updateError;
 
-            toast({ title: "Pagamento registrado e despesa criada!" });
+            toast({ title: "Pagamento registrado!", description: "Próximos meses foram verificados." });
+
+            // 4. GARANTIR FUTURO: Chama a geração para repor qualquer buraco e extender 12 meses
+            await handleAutoGenerateInFrontend(user.id, selectedCost);
+
             setIsPayOpen(false);
             fetchCosts();
         } catch (error: any) {
+            console.error(error);
             toast({ title: "Erro ao registrar pagamento", description: error.message, variant: "destructive" });
         }
     };
 
     const resetForm = () => {
-        setFormData({ title: "", amount: "", category: "", due_day: "", description: "" });
+        setFormData({
+            title: "",
+            amount: "",
+            category: "",
+            due_day: "",
+            description: "",
+            auto_generate: true,
+            payment_method: "Débito"
+        });
         setSelectedCost(null);
     };
 
@@ -214,9 +373,19 @@ export const FixedCosts = () => {
                 <h1 className="text-3xl font-bold text-card-foreground">
                     Custos Fixos
                 </h1>
-                <Button onClick={() => { resetForm(); setIsAddOpen(true); }}>
-                    <Plus className="mr-2 h-4 w-4" /> Novo Custo
-                </Button>
+                <div className="flex gap-2">
+                    <Button
+                        onClick={handleGenerateFutureExpenses}
+                        variant="outline"
+                        disabled={isGenerating || costs.length === 0}
+                    >
+                        <RefreshCw className={cn("mr-2 h-4 w-4", isGenerating && "animate-spin")} />
+                        {isGenerating ? "Gerando..." : "Gerar Despesas Pendentes"}
+                    </Button>
+                    <Button onClick={() => { resetForm(); setIsAddOpen(true); }}>
+                        <Plus className="mr-2 h-4 w-4" /> Novo Custo
+                    </Button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -257,7 +426,9 @@ export const FixedCosts = () => {
                                                 amount: cost.amount.toString(),
                                                 category: cost.category,
                                                 due_day: cost.due_day.toString(),
-                                                description: cost.description || ""
+                                                description: cost.description || "",
+                                                auto_generate: cost.auto_generate ?? true,
+                                                payment_method: cost.payment_method || "Débito"
                                             });
                                             setIsAddOpen(true);
                                         }}>
@@ -321,6 +492,35 @@ export const FixedCosts = () => {
                                     {categorias.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
                                 </SelectContent>
                             </Select>
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>Método de Pagamento Padrão</Label>
+                            <Select value={formData.payment_method} onValueChange={(val) => setFormData({ ...formData, payment_method: val })}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Selecione" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {categorias.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                                    <SelectItem value="Débito">Débito</SelectItem>
+                                    <SelectItem value="Pix">Pix</SelectItem>
+                                    <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                                    <SelectItem value="Crédito">Crédito</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                                <Label>Gerar Automaticamente</Label>
+                                <p className="text-xs text-muted-foreground">
+                                    Criar uma despesa pendente automaticamente
+                                </p>
+                            </div>
+                            <input
+                                type="checkbox"
+                                checked={formData.auto_generate}
+                                onChange={(e) => setFormData({ ...formData, auto_generate: e.target.checked })}
+                                className="h-5 w-5 rounded border-gray-300"
+                            />
                         </div>
                     </div>
                     <DialogFooter>

@@ -10,6 +10,7 @@ import { CategoryCharts } from "@/components/dashboard/CategoryCharts";
 import { DespesasTable } from "@/components/dashboard/DespesasTable";
 import { DespesaForm } from "@/components/dashboard/DespesaForm";
 import { BudgetVsActual } from "@/components/dashboard/BudgetVsActual";
+import { PendingExpenses } from "@/components/dashboard/PendingExpenses";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -381,13 +382,11 @@ const Dashboard = () => {
     }
   };
 
-  const despesasFiltradas = despesas.filter((despesa) => {
-    // Filtro de Data
+  // Helper para verificar data
+  const isDespesaInPeriod = (despesa: Despesa) => {
     const despesaDate = brToDate(despesa.Data);
 
-    // Lógica diferenciada por tipo
     if (despesa.Tipo === "Crédito") {
-      // Cartão segue o período configurado (dataInicio/dataFim)
       if (dataInicio) {
         const dataInicioDate = inputToDate(dataInicio);
         dataInicioDate.setHours(0, 0, 0, 0);
@@ -399,19 +398,14 @@ const Dashboard = () => {
         if (despesaDate > dataFimDate) return false;
       }
     } else {
-      // Débito/Pix/Dinheiro
       if (mesSelecionado) {
-        // Se tem mês selecionado, usa o mês civil (01 a 30/31)
-        const anoRef = dataInicio ? inputToDate(dataInicio).getFullYear() : new Date().getFullYear();
+        const anoRef = anoSelecionado;
         const inicioMes = new Date(anoRef, mesSelecionado - 1, 1);
         inicioMes.setHours(0, 0, 0, 0);
-
         const fimMes = new Date(anoRef, mesSelecionado, 0);
         fimMes.setHours(23, 59, 59, 999);
-
         if (despesaDate < inicioMes || despesaDate > fimMes) return false;
       } else {
-        // Se não tem mês selecionado (filtro manual), segue as datas do filtro
         if (dataInicio) {
           const dataInicioDate = inputToDate(dataInicio);
           dataInicioDate.setHours(0, 0, 0, 0);
@@ -424,9 +418,19 @@ const Dashboard = () => {
         }
       }
     }
-
     return true;
+  };
+
+  const despesasFiltradas = despesas.filter((despesa) => {
+    // Filtrar despesas pendentes de custos fixos (não mostrar nos cálculos principais)
+    if (despesa.status === 'pendente') return false;
+    return isDespesaInPeriod(despesa);
   });
+
+  // Separar despesas pendentes filtradas por data também!
+  const despesasPendentes = despesas.filter((despesa) =>
+    despesa.status === 'pendente' && isDespesaInPeriod(despesa)
+  );
 
   const handleAddOrUpdate = async (despesa: Omit<Despesa, "id"> & { id?: number }) => {
     if (!userId) return;
@@ -614,20 +618,26 @@ const Dashboard = () => {
     });
   };
 
-  const despesasExibidas = despesasFiltradas.filter(despesa => {
-    if (!activeSummaryFilter) return true;
-
-    switch (activeSummaryFilter.type) {
-      case "credito":
-        return despesa.Tipo === "Crédito";
-      case "outros":
-        return ["Pix", "Débito", "Dinheiro"].includes(despesa.Tipo);
-      case "responsavel":
-        return despesa.Responsavel === activeSummaryFilter.value;
-      default:
-        return true;
+  const despesasExibidas = (() => {
+    if (activeSummaryFilter?.type === 'custo_fixo') {
+      return despesasPendentes;
     }
-  });
+
+    return despesasFiltradas.filter(despesa => {
+      if (!activeSummaryFilter) return true;
+
+      switch (activeSummaryFilter.type) {
+        case "credito":
+          return despesa.Tipo === "Crédito";
+        case "outros":
+          return ["Pix", "Débito", "Dinheiro"].includes(despesa.Tipo);
+        case "responsavel":
+          return despesa.Responsavel === activeSummaryFilter.value;
+        default:
+          return true;
+      }
+    });
+  })();
 
   const despesasOrdenadas = [...despesasExibidas].sort((a, b) => {
     const dateA = new Date(a.created_at || 0).getTime();
@@ -792,9 +802,12 @@ const Dashboard = () => {
 
         <SummaryCards
           despesas={despesasFiltradas}
+          despesasPendentes={despesasPendentes}
           onFilterChange={handleSummaryFilterChange}
           activeFilter={activeSummaryFilter}
         />
+
+
 
         <CategoryCharts despesas={despesasFiltradas} />
 

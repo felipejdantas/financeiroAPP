@@ -9,8 +9,9 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { Despesa } from "@/types/despesa";
-import { Receipt, Pencil, Trash2, Copy, Edit3 } from "lucide-react";
+import { Receipt, Pencil, Trash2, Copy, Edit3, Clock, CheckCircle2 } from "lucide-react";
 import { useState, useEffect } from "react";
 
 interface DespesasTableProps {
@@ -19,10 +20,11 @@ interface DespesasTableProps {
   onDelete: (id: number) => void;
   onDuplicate: (despesa: Despesa) => void;
   onBulkEditClick?: (selectedIds: number[]) => void;
+  onBulkDeleteClick?: (selectedIds: number[]) => void;
   categoryEmojis?: Record<string, string>;
 }
 
-export const DespesasTable = ({ despesas, onEdit, onDelete, onDuplicate, onBulkEditClick, categoryEmojis = {} }: DespesasTableProps) => {
+export const DespesasTable = ({ despesas, onEdit, onDelete, onDuplicate, onBulkEditClick, onBulkDeleteClick, categoryEmojis = {} }: DespesasTableProps) => {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   // Reset selection when despesas change
@@ -52,6 +54,12 @@ export const DespesasTable = ({ despesas, onEdit, onDelete, onDuplicate, onBulkE
   const handleBulkEdit = () => {
     if (onBulkEditClick && selectedIds.size > 0) {
       onBulkEditClick(Array.from(selectedIds));
+    }
+  };
+
+  const handleBulkDelete = () => {
+    if (onBulkDeleteClick && selectedIds.size > 0) {
+      onBulkDeleteClick(Array.from(selectedIds));
     }
   };
 
@@ -186,6 +194,15 @@ export const DespesasTable = ({ despesas, onEdit, onDelete, onDuplicate, onBulkE
                 <Edit3 className="h-3.5 w-3.5" />
                 Editar
               </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={handleBulkDelete}
+                className="h-7 gap-1"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Excluir
+              </Button>
             </div>
           )}
         </div>
@@ -231,7 +248,29 @@ export const DespesasTable = ({ despesas, onEdit, onDelete, onDuplicate, onBulkE
                     <TableCell className="text-foreground font-medium text-[10px] md:text-xs whitespace-nowrap">
                       {formatDate(despesa.Data)}
                     </TableCell>
-                    <TableCell className="text-foreground text-[10px] md:text-xs max-w-[120px] truncate">{despesa.Descrição}</TableCell>
+                    <TableCell className="text-foreground text-[10px] md:text-xs max-w-[120px] truncate">
+                      <div className="flex items-center gap-1">
+                        <span>{despesa.Descrição}</span>
+                        {despesa.fixed_cost_id && (
+                          <Badge
+                            variant={despesa.status === 'pendente' ? 'outline' : 'secondary'}
+                            className="text-[8px] px-1 py-0 h-4 flex items-center gap-0.5"
+                          >
+                            {despesa.status === 'pendente' ? (
+                              <>
+                                <Clock className="h-2.5 w-2.5" />
+                                Pendente
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle2 className="h-2.5 w-2.5" />
+                                Auto
+                              </>
+                            )}
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-foreground text-[10px] md:text-xs hidden sm:table-cell">{despesa.Responsavel}</TableCell>
                     <TableCell className="text-foreground text-[10px] md:text-xs hidden md:table-cell">{despesa.Tipo}</TableCell>
                     <TableCell className="text-foreground text-[10px] md:text-xs hidden lg:table-cell">

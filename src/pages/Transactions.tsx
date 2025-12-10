@@ -64,6 +64,7 @@ export default function Transactions() {
     const [categoriasDisponiveis, setCategoriasDisponiveis] = useState<string[]>([]);
     const [bulkEditOpen, setBulkEditOpen] = useState(false);
     const [selectedExpenseIds, setSelectedExpenseIds] = useState<number[]>([]);
+    const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
 
     const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
@@ -204,6 +205,11 @@ export default function Transactions() {
     };
 
     const despesasFiltradas = despesas.filter((despesa) => {
+        // Filtrar despesas pendentes de custos fixos (não mostrar em Transações)
+        if (despesa.status === 'pendente') {
+            return false;
+        }
+
         if (responsavelFilter !== "todos" && despesa.Responsavel !== responsavelFilter) {
             return false;
         }
@@ -388,14 +394,26 @@ export default function Transactions() {
             const despesa = despesas.find((d) => d.id === despesaToDelete);
             if (!despesa) return;
 
-            const tableName = despesa.Tipo === "Crédito" ? "Financeiro Cartão" : "Financeiro Debito";
-
-            const { error } = await supabase
-                .from(tableName)
-                .delete()
+            // Tenta deletar da tabela baseada no Tipo
+            let tableName = despesa.Tipo === "Crédito" ? "Financeiro Cartão" : "Financeiro Debito";
+            let { error, count } = await supabase
+                .from(tableName as any)
+                .delete({ count: 'exact' })
                 .eq("id", despesaToDelete);
 
-            if (error) throw error;
+            // Se não encontrou/deletou nada (count === 0), tenta na outra tabela como fallback
+            if (count === 0) {
+                console.log("Tentando deletar da outra tabela (fallback)...");
+                const otherTable = tableName === "Financeiro Cartão" ? "Financeiro Debito" : "Financeiro Cartão";
+                const retry = await supabase
+                    .from(otherTable as any)
+                    .delete({ count: 'exact' })
+                    .eq("id", despesaToDelete);
+
+                if (retry.error) throw retry.error;
+            } else if (error) {
+                throw error;
+            }
 
             toast({ title: "Despesa excluída com sucesso!" });
             fetchDespesas();
@@ -449,6 +467,48 @@ export default function Transactions() {
     const handleBulkEditClick = (selectedIds: number[]) => {
         setSelectedExpenseIds(selectedIds);
         setBulkEditOpen(true);
+    };
+
+    const handleBulkDeleteClick = (selectedIds: number[]) => {
+        setSelectedExpenseIds(selectedIds);
+        setBulkDeleteDialogOpen(true);
+    };
+
+    const handleBulkDelete = async () => {
+        if (!userId || selectedExpenseIds.length === 0) return;
+
+        try {
+            // Tenta apagar todos os IDs selecionados de AMBAS as tabelas para garantir
+            // Isso previne erros se o Tipo estiver desincronizado com a tabela real
+
+            const { error: error1 } = await supabase
+                .from("Financeiro Cartão")
+                .delete()
+                .in("id", selectedExpenseIds);
+
+            const { error: error2 } = await supabase
+                .from("Financeiro Debito")
+                .delete()
+                .in("id", selectedExpenseIds);
+
+            if (error1 && error2) throw new Error(error1.message + " | " + error2.message);
+
+            toast({
+                title: "Exclusão em massa concluída!",
+                description: `${selectedExpenseIds.length} despesa(s) excluída(s) com sucesso.`,
+            });
+
+            fetchDespesas();
+            setBulkDeleteDialogOpen(false);
+            setSelectedExpenseIds([]);
+        } catch (error: any) {
+            console.error("Erro ao excluir despesas em massa:", error);
+            toast({
+                title: "Erro ao excluir despesas",
+                description: error.message,
+                variant: "destructive",
+            });
+        }
     };
 
     const handleBulkEditApply = async (updates: BulkEditUpdates) => {
@@ -623,6 +683,7 @@ export default function Transactions() {
                 onDelete={handleDeleteClick}
                 onDuplicate={handleDuplicate}
                 onBulkEditClick={handleBulkEditClick}
+                onBulkDeleteClick={handleBulkDeleteClick}
                 categoryEmojis={categoryEmojis}
             />
 
@@ -665,6 +726,23 @@ export default function Transactions() {
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
                         <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                             Excluir
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Confirmar exclusão em massa</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Tem certeza que deseja excluir as {selectedExpenseIds.length} despesas selecionadas? Esta ação não pode ser desfeita.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Excluir Selecionadas
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

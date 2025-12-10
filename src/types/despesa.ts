@@ -8,6 +8,8 @@ export interface Despesa {
   Categoria: string;
   id?: number;
   created_at?: string;
+  fixed_cost_id?: number;
+  status?: 'pendente' | 'pago';
 }
 
 export type ResponsavelFilter = 'todos' | string;
