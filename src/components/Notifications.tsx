@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { Bell, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,10 +25,19 @@ export const Notifications = () => {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [count, setCount] = useState(0);
     const { toast } = useToast();
+    const location = useLocation(); // Trigger update on route change
 
     useEffect(() => {
+        // Initial check
         checkNotifications();
-    }, []);
+
+        // Poll every 60 seconds
+        const interval = setInterval(() => {
+            checkNotifications();
+        }, 60000);
+
+        return () => clearInterval(interval);
+    }, [location.pathname]); // Also re-check when changing pages
 
     const checkNotifications = async () => {
         try {
@@ -39,7 +49,7 @@ export const Notifications = () => {
             const currentMonth = today.getMonth(); // 0-indexed
             const currentYear = today.getFullYear();
 
-            // Fetch dismissals
+            // Fetch dismissals FRESH every time
             const { data: dismissedData } = await supabase
                 .from("dismissed_notifications" as any)
                 .select("notification_key")
@@ -57,7 +67,7 @@ export const Notifications = () => {
 
             if (costs) {
                 costs.forEach((cost: any) => {
-                    // Check if paid this month
+                    // Check if paid in current month
                     let isPaid = false;
                     if (cost.last_paid_date) {
                         const lastPaid = parseISO(cost.last_paid_date);
@@ -78,7 +88,7 @@ export const Notifications = () => {
                                     type: "destructive"
                                 });
                             }
-                        } else if (diff <= 3) {
+                        } else if (diff <= 5) { // Changed from 3 to 5 days
                             const key = `fc_${cost.id}_upcoming_${currentMonth}_${currentYear}`;
                             if (!dismissedKeys.has(key)) {
                                 activeNotifications.push({
@@ -182,6 +192,8 @@ export const Notifications = () => {
 
             if (error) throw error;
 
+            // We don't need to re-fetch immediately as we did optimistic update.
+            // The next poll will pick up the new blocked list anyway.
         } catch (error: any) {
             console.error("Error dismissing notification:", error);
             toast({
