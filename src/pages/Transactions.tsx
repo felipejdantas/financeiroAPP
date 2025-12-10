@@ -266,7 +266,7 @@ export default function Transactions() {
         if (!userId) return;
 
         try {
-            const tableName = despesa.Tipo === "Débito" ? "Financeiro Debito" : "Financeiro Cartão";
+            const tableName = despesa.Tipo === "Crédito" ? "Financeiro Cartão" : "Financeiro Debito";
 
             if (despesa.id) {
                 const { error } = await supabase
@@ -352,7 +352,7 @@ export default function Transactions() {
         if (!userId) return;
 
         try {
-            const tableName = despesa.Tipo === "Débito" ? "Financeiro Debito" : "Financeiro Cartão";
+            const tableName = despesa.Tipo === "Crédito" ? "Financeiro Cartão" : "Financeiro Debito";
 
             const { error } = await supabase
                 .from(tableName)
@@ -388,7 +388,7 @@ export default function Transactions() {
             const despesa = despesas.find((d) => d.id === despesaToDelete);
             if (!despesa) return;
 
-            const tableName = despesa.Tipo === "Débito" ? "Financeiro Debito" : "Financeiro Cartão";
+            const tableName = despesa.Tipo === "Crédito" ? "Financeiro Cartão" : "Financeiro Debito";
 
             const { error } = await supabase
                 .from(tableName)
