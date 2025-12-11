@@ -158,13 +158,32 @@ export const FixedCosts = () => {
 
     // --- LOGICA DE GERAÇÃO (FRONTEND) ---
     // Agora gera 12 meses para frente garantido
+    // --- LOGICA DE GERAÇÃO (FRONTEND) OTIMIZADA ---
+    // Gera 24 meses para frente em lote (Batch) para evitar lentidão
     const handleAutoGenerateInFrontend = async (userId: string, cost: any) => {
         try {
+            const tableName = cost.payment_method === 'Crédito' ? 'Financeiro Cartão' : 'Financeiro Debito';
+
+            // 1. Busca TODAS as despesas existentes para este custo fixo de uma vez só
+            const { data: existingExpenses } = await supabase
+                .from(tableName)
+                .select('Data')
+                .eq('fixed_cost_id', cost.id);
+
+            // Set de datas existentes para busca rápida (formato MM/yyyy)
+            const existingDates = new Set(
+                (existingExpenses || []).map(e => {
+                    const parts = e.Data.split('/'); // assumindo DD/MM/YYYY
+                    if (parts.length === 3) return `${parts[1]}/${parts[2]}`; // MM/yyyy
+                    return '';
+                })
+            );
+
+            const toInsert = [];
             const today = new Date();
-            // Começa do mês ATUAL
             let baseDate = new Date(today.getFullYear(), today.getMonth(), 1);
 
-            // Loop para gerar 24 meses (2 anos) para garantir cobertura total
+            // 2. Loop local de cálculo (sem chamadas ao banco)
             for (let i = 0; i < 24; i++) {
                 let targetDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, 1);
 
@@ -173,42 +192,37 @@ export const FixedCosts = () => {
                 const safeDay = Math.min(cost.due_day, lastDayOfMonth);
                 targetDate.setDate(safeDay);
 
-                // Formatamos a data para query e para match
-                // Obs: Banco supõe DD/MM/YYYY padrão string no app atual
-                const dateStr = format(targetDate, "dd/MM/yyyy");
                 const monthYearStr = format(targetDate, "MM/yyyy");
 
-                // Busca duplicata (Pendente ou Pago)
-                const tableName = cost.payment_method === 'Crédito' ? 'Financeiro Cartão' : 'Financeiro Debito';
-
-                // Busca se já existe algum item com esse fixed_cost_id e essa data (mês/ano)
-                // Usando ILIKE para achar '/MM/yyyy' na string de data
-                const { data: existing } = await supabase
-                    .from(tableName)
-                    .select('id')
-                    .eq('fixed_cost_id', cost.id)
-                    .ilike('Data', `%/${monthYearStr}`);
-
-                if (existing && existing.length > 0) {
-                    continue; // Pula esse mês, já tem registro (pendente ou pago)
+                // Se já existe, pula
+                if (existingDates.has(monthYearStr)) {
+                    continue;
                 }
 
-                // Inserir Pendência
-                await supabase
+                // Adiciona ao array de inserção em massa
+                const dateStr = format(targetDate, "dd/MM/yyyy");
+                toInsert.push({
+                    user_id: userId,
+                    "Responsavel": 'Sistema',
+                    "Tipo": cost.payment_method,
+                    "Categoria": cost.category,
+                    "Parcelas": 'A vista',
+                    "Descrição": `${cost.title} (Custo Fixo)`,
+                    "Data": dateStr,
+                    "valor": cost.amount,
+                    "status": 'pendente',
+                    "fixed_cost_id": cost.id,
+                    "created_at": new Date().toISOString()
+                });
+            }
+
+            // 3. Inserção em massa (Batch Insert) - 1 única chamada
+            if (toInsert.length > 0) {
+                const { error } = await supabase
                     .from(tableName)
-                    .insert({
-                        user_id: userId,
-                        "Responsavel": 'Sistema',
-                        "Tipo": cost.payment_method,
-                        "Categoria": cost.category,
-                        "Parcelas": 'A vista',
-                        "Descrição": `${cost.title} (Custo Fixo)`,
-                        "Data": dateStr,
-                        "valor": cost.amount,
-                        "status": 'pendente',
-                        "fixed_cost_id": cost.id,
-                        "created_at": new Date().toISOString()
-                    });
+                    .insert(toInsert);
+
+                if (error) console.error("Erro no batch insert:", error);
             }
 
         } catch (e) {

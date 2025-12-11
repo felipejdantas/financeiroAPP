@@ -281,6 +281,7 @@ const Dashboard = () => {
       const periodo = await calcularPeriodoDoMes(uid, mesAtual);
       setDataInicio(periodo.dataInicio);
       setDataFim(periodo.dataFim);
+      setMesSelecionado(mesAtual);
 
     } catch (error) {
       console.error("Erro ao aplicar filtros:", error);
@@ -289,6 +290,7 @@ const Dashboard = () => {
       const periodo = await calcularPeriodoDoMes(uid, mesAtual);
       setDataInicio(periodo.dataInicio);
       setDataFim(periodo.dataFim);
+      setMesSelecionado(mesAtual);
     }
   };
 
@@ -831,7 +833,7 @@ const Dashboard = () => {
 
 
 
-        <CategoryCharts despesas={despesasFiltradas} />
+        <CategoryCharts despesas={despesasExibidas} />
 
         {userId && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
