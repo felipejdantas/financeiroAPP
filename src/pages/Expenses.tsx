@@ -38,7 +38,7 @@ const getTotalParcelas = (parcelas: string): string | null => {
     return numero.toString();
 };
 
-export default function Transactions() {
+export default function Expenses() {
     const navigate = useNavigate();
     const [userId, setUserId] = useState<string | null>(null);
     const [userName, setUserName] = useState<string>("");

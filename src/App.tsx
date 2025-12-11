@@ -5,7 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "./components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
-import Transactions from "./pages/Transactions";
+import Revenue from "./pages/Revenue";
+import Expenses from "./pages/Expenses";
 import Categories from "./pages/Categories";
 import Planning from "./pages/Planning";
 import Scheduling from "./pages/Scheduling";
@@ -39,7 +40,8 @@ const App = () => (
             >
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="dashboard" element={<Dashboard />} />
-              <Route path="transactions" element={<Transactions />} />
+              <Route path="revenues" element={<Revenue />} />
+              <Route path="expenses" element={<Expenses />} />
               <Route path="categories" element={<Categories />} />
               <Route path="fixed-costs" element={<FixedCosts />} />
               <Route path="planning" element={<Planning />} />

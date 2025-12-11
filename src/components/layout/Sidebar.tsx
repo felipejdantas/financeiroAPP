@@ -12,7 +12,8 @@ import {
     LogOut,
     ChevronLeft,
     ChevronRight,
-    Clock
+    Clock,
+    TrendingUp
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -24,7 +25,8 @@ interface SidebarProps {
 
 const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: Home },
-    { name: "Transações", href: "/transactions", icon: CreditCard },
+    { name: "Receitas", href: "/revenues", icon: TrendingUp },
+    { name: "Despesas", href: "/expenses", icon: CreditCard },
     { name: "Categorias", href: "/categories", icon: Tag },
     { name: "Custos Fixos", href: "/fixed-costs", icon: Clock },
     { name: "Planejamento", href: "/planning", icon: Target },
