@@ -617,145 +617,148 @@ export default function Transactions() {
     const temMaisDespesas = despesasOrdenadas.length > registrosMostrados;
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold text-card-foreground">Transações</h1>
-                    <p className="text-muted-foreground mt-2">
-                        Visualize e gerencie todas as suas transações
-                    </p>
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 p-2 md:p-8 animate-fade-in">
+            <div className="max-w-7xl mx-auto space-y-6">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="text-center md:text-left">
+                        <h1 className="text-3xl font-bold text-card-foreground">Transações</h1>
+                        <p className="text-muted-foreground mt-2">
+                            Visualize e gerencie todas as suas transações
+                        </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 justify-center md:justify-end w-full md:w-auto">
+                        <Button
+                            variant={isFiltersOpen ? "secondary" : "outline"}
+                            onClick={() => setIsFiltersOpen(!isFiltersOpen)}
+                            className="flex-1 md:flex-none"
+                        >
+                            <Filter className="mr-2 h-4 w-4" />
+                            Filtros
+                        </Button>
+                        <Button onClick={() => setFormOpen(true)} className="flex-1 md:flex-none">
+                            <Plus className="mr-2 h-4 w-4" />
+                            Nova Despesa
+                        </Button>
+                        <ExportButton
+                            despesas={despesasFiltradas}
+                            filtrosAtivos={{
+                                responsavel: responsavelFilter,
+                                tipo: tipoFilter,
+                                categoria: categoriaFilter
+                            }}
+                            simple={true}
+                        />
+                        <Button variant="outline" onClick={fetchDespesas} size="icon">
+                            <RefreshCw className="h-4 w-4" />
+                        </Button>
+                    </div>
                 </div>
-                <div className="flex gap-2">
-                    <Button
-                        variant={isFiltersOpen ? "secondary" : "outline"}
-                        onClick={() => setIsFiltersOpen(!isFiltersOpen)}
-                    >
-                        <Filter className="mr-2 h-4 w-4" />
-                        Filtros
-                    </Button>
-                    <Button onClick={() => setFormOpen(true)}>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Nova Despesa
-                    </Button>
-                    <ExportButton
-                        despesas={despesasFiltradas}
-                        filtrosAtivos={{
-                            responsavel: responsavelFilter,
-                            tipo: tipoFilter,
-                            categoria: categoriaFilter
-                        }}
-                        simple={true}
+
+                {isFiltersOpen && (
+                    <Filters
+                        responsavelFilter={responsavelFilter}
+                        setResponsavelFilter={setResponsavelFilter}
+                        tipoFilter={tipoFilter}
+                        setTipoFilter={setTipoFilter}
+                        categoriaFilter={categoriaFilter}
+                        setCategoriaFilter={setCategoriaFilter}
+                        parcelaFilter={parcelaFilter}
+                        setParcelaFilter={setParcelaFilter}
+                        dataInicio={dataInicio}
+                        setDataInicio={setDataInicio}
+                        dataFim={dataFim}
+                        setDataFim={setDataFim}
+                        onMesSelecionado={setMesSelecionado}
+                        anoSelecionado={anoSelecionado}
+                        setAnoSelecionado={setAnoSelecionado}
+                        categorias={[...new Set(despesas.map(d => d.Categoria).filter(Boolean))]}
+                        responsaveis={[...new Set(despesas.map(d => d.Responsavel).filter(Boolean))]}
+                        periodosMensais={periodosMensais}
+                        userId={userId || ""}
+                        onClearFilters={limparFiltros}
                     />
-                    <Button variant="outline" onClick={fetchDespesas} size="icon">
-                        <RefreshCw className="h-4 w-4" />
-                    </Button>
-                </div>
-            </div>
+                )}
 
-            {isFiltersOpen && (
-                <Filters
-                    responsavelFilter={responsavelFilter}
-                    setResponsavelFilter={setResponsavelFilter}
-                    tipoFilter={tipoFilter}
-                    setTipoFilter={setTipoFilter}
-                    categoriaFilter={categoriaFilter}
-                    setCategoriaFilter={setCategoriaFilter}
-                    parcelaFilter={parcelaFilter}
-                    setParcelaFilter={setParcelaFilter}
-                    dataInicio={dataInicio}
-                    setDataInicio={setDataInicio}
-                    dataFim={dataFim}
-                    setDataFim={setDataFim}
-                    onMesSelecionado={setMesSelecionado}
-                    anoSelecionado={anoSelecionado}
-                    setAnoSelecionado={setAnoSelecionado}
-                    categorias={[...new Set(despesas.map(d => d.Categoria).filter(Boolean))]}
-                    responsaveis={[...new Set(despesas.map(d => d.Responsavel).filter(Boolean))]}
-                    periodosMensais={periodosMensais}
-                    userId={userId || ""}
-                    onClearFilters={limparFiltros}
+                <DespesasTable
+                    despesas={despesasVisiveis}
+                    onEdit={handleEdit}
+                    onDelete={handleDeleteClick}
+                    onDuplicate={handleDuplicate}
+                    onBulkEditClick={handleBulkEditClick}
+                    onBulkDeleteClick={handleBulkDeleteClick}
+                    categoryEmojis={categoryEmojis}
                 />
-            )}
 
-            <DespesasTable
-                despesas={despesasVisiveis}
-                onEdit={handleEdit}
-                onDelete={handleDeleteClick}
-                onDuplicate={handleDuplicate}
-                onBulkEditClick={handleBulkEditClick}
-                onBulkDeleteClick={handleBulkDeleteClick}
-                categoryEmojis={categoryEmojis}
-            />
+                {temMaisDespesas && (
+                    <div className="flex justify-center mt-4">
+                        <Button
+                            variant="outline"
+                            onClick={() => setRegistrosMostrados(prev => prev + 10)}
+                            className="min-w-[200px]"
+                        >
+                            Mostrar Mais 10 Registros
+                            <span className="ml-2 text-muted-foreground">
+                                ({despesasVisiveis.length} de {despesasOrdenadas.length})
+                            </span>
+                        </Button>
+                    </div>
+                )}
 
-            {temMaisDespesas && (
-                <div className="flex justify-center mt-4">
-                    <Button
-                        variant="outline"
-                        onClick={() => setRegistrosMostrados(prev => prev + 10)}
-                        className="min-w-[200px]"
-                    >
-                        Mostrar Mais 10 Registros
-                        <span className="ml-2 text-muted-foreground">
-                            ({despesasVisiveis.length} de {despesasOrdenadas.length})
-                        </span>
-                    </Button>
-                </div>
-            )}
+                {formOpen && (
+                    <DespesaForm
+                        open={formOpen}
+                        onOpenChange={setFormOpen}
+                        onSubmit={handleFormSubmit}
+                        despesa={editingDespesa}
+                        categorias={categoriasDisponiveis}
+                        responsaveis={[...new Set(despesas.map(d => d.Responsavel).filter(Boolean))]}
+                        defaultResponsavel={userName}
+                    />
+                )}
 
-            {formOpen && (
-                <DespesaForm
-                    open={formOpen}
-                    onOpenChange={setFormOpen}
-                    onSubmit={handleFormSubmit}
-                    despesa={editingDespesa}
+                <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Tem certeza que deseja excluir esta despesa? Esta ação não pode ser desfeita.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                Excluir
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+
+                <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Confirmar exclusão em massa</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Tem certeza que deseja excluir as {selectedExpenseIds.length} despesas selecionadas? Esta ação não pode ser desfeita.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                Excluir Selecionadas
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+
+                <BulkEditDialog
+                    open={bulkEditOpen}
+                    onOpenChange={setBulkEditOpen}
+                    onApply={handleBulkEditApply}
+                    selectedCount={selectedExpenseIds.length}
                     categorias={categoriasDisponiveis}
                     responsaveis={[...new Set(despesas.map(d => d.Responsavel).filter(Boolean))]}
-                    defaultResponsavel={userName}
                 />
-            )}
-
-            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Tem certeza que deseja excluir esta despesa? Esta ação não pode ser desfeita.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                            Excluir
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-
-            <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Confirmar exclusão em massa</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Tem certeza que deseja excluir as {selectedExpenseIds.length} despesas selecionadas? Esta ação não pode ser desfeita.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                            Excluir Selecionadas
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-
-            <BulkEditDialog
-                open={bulkEditOpen}
-                onOpenChange={setBulkEditOpen}
-                onApply={handleBulkEditApply}
-                selectedCount={selectedExpenseIds.length}
-                categorias={categoriasDisponiveis}
-                responsaveis={[...new Set(despesas.map(d => d.Responsavel).filter(Boolean))]}
-            />
+            </div>
         </div>
     );
 }

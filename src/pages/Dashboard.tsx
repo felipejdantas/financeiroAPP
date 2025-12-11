@@ -338,9 +338,30 @@ const Dashboard = () => {
         .order("mes_referencia");
 
       if (error) throw error;
-      setPeriodosMensais(data || []);
+
+      if (!data || data.length === 0) {
+        // Fallback: Gerar meses padrão se não houver configuração personalizada
+        const mesesPadrao = Array.from({ length: 12 }, (_, i) => ({
+          mes_referencia: i + 1,
+          nome: getMonthName(i),
+          periodo: getMonthName(i),
+          dia_inicio: 1,
+          dia_fim: new Date(new Date().getFullYear(), i + 1, 0).getDate(), // Último dia do mês
+          mes_inicio_offset: 0
+        }));
+        setPeriodosMensais(mesesPadrao);
+      } else {
+        setPeriodosMensais(data);
+      }
     } catch (error: any) {
       console.error("Erro ao carregar períodos mensais:", error);
+      // Fallback em caso de erro também
+      const mesesPadrao = Array.from({ length: 12 }, (_, i) => ({
+        mes_referencia: i + 1,
+        nome: getMonthName(i),
+        periodo: getMonthName(i)
+      }));
+      setPeriodosMensais(mesesPadrao);
     }
   };
 
@@ -729,29 +750,12 @@ const Dashboard = () => {
               </Button>
 
               <div className="min-w-[140px] text-center">
-                {/* Select Mês */}
-                <Select
-                  value={mesSelecionado?.toString()}
-                  onValueChange={(val) => {
-                    setMesSelecionado(parseInt(val));
-                    // Resetar datas manuais se selecionar mês
-                    setDataInicio("");
-                    setDataFim("");
-                  }}
-                >
-                  <SelectTrigger className="bg-transparent border-none text-lg font-bold shadow-none focus:ring-0 justify-center gap-2">
-                    <SelectValue placeholder="Mês" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {periodosMensais.map((p, idx) => (
-                      <SelectItem key={idx} value={(idx + 1).toString()}>
-                        {p.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <span className="text-xs text-muted-foreground block -mt-1">
-                  {periodosMensais[mesSelecionado ? mesSelecionado - 1 : currentMonthIndex]?.periodo || ""}
+                {/* Exibição simples do Mês (sem dropdown) */}
+                <span className="text-xl font-bold text-foreground capitalize block">
+                  {periodosMensais[(mesSelecionado || currentMonthIndex + 1) - 1]?.nome || getMonthName((mesSelecionado || currentMonthIndex + 1) - 1)}
+                </span>
+                <span className="text-xs text-muted-foreground block -mt-1 opacity-70">
+                  {periodosMensais[(mesSelecionado || currentMonthIndex + 1) - 1]?.periodo || ""}
                 </span>
               </div>
 

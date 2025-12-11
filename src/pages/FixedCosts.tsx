@@ -368,208 +368,211 @@ export const FixedCosts = () => {
     };
 
     return (
-        <div className="space-y-6 animate-fade-in">
-            <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold text-card-foreground">
-                    Custos Fixos
-                </h1>
-                <div className="flex gap-2">
-                    <Button
-                        onClick={handleGenerateFutureExpenses}
-                        variant="outline"
-                        disabled={isGenerating || costs.length === 0}
-                    >
-                        <RefreshCw className={cn("mr-2 h-4 w-4", isGenerating && "animate-spin")} />
-                        {isGenerating ? "Gerando..." : "Gerar Despesas Pendentes"}
-                    </Button>
-                    <Button onClick={() => { resetForm(); setIsAddOpen(true); }}>
-                        <Plus className="mr-2 h-4 w-4" /> Novo Custo
-                    </Button>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {costs.map((cost) => {
-                    const status = getStatus(cost);
-                    return (
-                        <Card key={cost.id} className="hover:shadow-lg transition-shadow border-l-4 border-l-primary/50 relative overflow-hidden group">
-                            <div className={cn("absolute top-0 right-0 px-3 py-1 text-xs font-bold rounded-bl-lg", status.bg, status.color)}>
-                                {status.label}
-                            </div>
-                            <CardHeader className="pb-2">
-                                <CardTitle className="flex justify-between items-start">
-                                    <span className="text-xl">{cost.title}</span>
-                                </CardTitle>
-                                <div className="text-sm text-muted-foreground">{cost.category}</div>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="flex justify-between items-end mt-4">
-                                    <div>
-                                        <div className="text-2xl font-bold">
-                                            R$ {cost.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                        </div>
-                                        <div className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
-                                            <AlertCircle className="h-3 w-3" />
-                                            {status.status === 'paid' ? (
-                                                <span>Próximo vencimento: {format(new Date(new Date().getFullYear(), new Date().getMonth() + 1, cost.due_day), "dd/MM/yyyy")}</span>
-                                            ) : (
-                                                <span>Vencimento: {format(new Date(new Date().getFullYear(), new Date().getMonth(), cost.due_day), "dd/MM/yyyy")}</span>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <div className="flex gap-2">
-                                        <Button variant="ghost" size="icon" onClick={() => {
-                                            setSelectedCost(cost);
-                                            setFormData({
-                                                title: cost.title,
-                                                amount: cost.amount.toString(),
-                                                category: cost.category,
-                                                due_day: cost.due_day.toString(),
-                                                description: cost.description || "",
-                                                auto_generate: cost.auto_generate ?? true,
-                                                payment_method: cost.payment_method || "Débito"
-                                            });
-                                            setIsAddOpen(true);
-                                        }}>
-                                            <Edit className="h-4 w-4" />
-                                        </Button>
-                                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(cost.id)}>
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                </div>
-
-                                {status.status !== "paid" && (
-                                    <Button className="w-full mt-4" onClick={() => openPayModal(cost)}>
-                                        <Check className="mr-2 h-4 w-4" /> Registrar Pagamento
-                                    </Button>
-                                )}
-                                {status.status === "paid" && (
-                                    <Button className="w-full mt-4" variant="outline" disabled>
-                                        <Check className="mr-2 h-4 w-4" /> Pago em {cost.last_paid_date && format(parseISO(cost.last_paid_date), 'dd/MM')}
-                                    </Button>
-                                )}
-                            </CardContent>
-                        </Card>
-                    );
-                })}
-                {costs.length === 0 && !loading && (
-                    <div className="col-span-full text-center py-10 text-muted-foreground">
-                        Nenhum custo fixo cadastrado.
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 p-2 md:p-8 animate-fade-in">
+            <div className="max-w-7xl mx-auto space-y-6">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                    <h1 className="text-3xl font-bold text-card-foreground text-center md:text-left">
+                        Custos Fixos
+                    </h1>
+                    <div className="flex flex-wrap gap-2 justify-center md:justify-end w-full md:w-auto">
+                        <Button
+                            onClick={handleGenerateFutureExpenses}
+                            variant="outline"
+                            disabled={isGenerating || costs.length === 0}
+                            className="flex-1 md:flex-none"
+                        >
+                            <RefreshCw className={cn("mr-2 h-4 w-4", isGenerating && "animate-spin")} />
+                            {isGenerating ? "Gerando..." : "Gerar Pendentes"}
+                        </Button>
+                        <Button onClick={() => { resetForm(); setIsAddOpen(true); }} className="flex-1 md:flex-none">
+                            <Plus className="mr-2 h-4 w-4" /> Novo Custo
+                        </Button>
                     </div>
-                )}
-            </div>
+                </div>
 
-            {/* Add/Edit Modal */}
-            <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>{selectedCost ? "Editar Custo Fixo" : "Novo Custo Fixo"}</DialogTitle>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                            <Label>Título</Label>
-                            <Input value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="Ex: Aluguel" />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {costs.map((cost) => {
+                        const status = getStatus(cost);
+                        return (
+                            <Card key={cost.id} className="hover:shadow-lg transition-shadow border-l-4 border-l-primary/50 relative overflow-hidden group">
+                                <div className={cn("absolute top-0 right-0 px-3 py-1 text-xs font-bold rounded-bl-lg", status.bg, status.color)}>
+                                    {status.label}
+                                </div>
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="flex justify-between items-start">
+                                        <span className="text-xl">{cost.title}</span>
+                                    </CardTitle>
+                                    <div className="text-sm text-muted-foreground">{cost.category}</div>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="flex justify-between items-end mt-4">
+                                        <div>
+                                            <div className="text-2xl font-bold">
+                                                R$ {cost.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                            </div>
+                                            <div className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
+                                                <AlertCircle className="h-3 w-3" />
+                                                {status.status === 'paid' ? (
+                                                    <span>Próximo vencimento: {format(new Date(new Date().getFullYear(), new Date().getMonth() + 1, cost.due_day), "dd/MM/yyyy")}</span>
+                                                ) : (
+                                                    <span>Vencimento: {format(new Date(new Date().getFullYear(), new Date().getMonth(), cost.due_day), "dd/MM/yyyy")}</span>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="flex gap-2">
+                                            <Button variant="ghost" size="icon" onClick={() => {
+                                                setSelectedCost(cost);
+                                                setFormData({
+                                                    title: cost.title,
+                                                    amount: cost.amount.toString(),
+                                                    category: cost.category,
+                                                    due_day: cost.due_day.toString(),
+                                                    description: cost.description || "",
+                                                    auto_generate: cost.auto_generate ?? true,
+                                                    payment_method: cost.payment_method || "Débito"
+                                                });
+                                                setIsAddOpen(true);
+                                            }}>
+                                                <Edit className="h-4 w-4" />
+                                            </Button>
+                                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(cost.id)}>
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    {status.status !== "paid" && (
+                                        <Button className="w-full mt-4" onClick={() => openPayModal(cost)}>
+                                            <Check className="mr-2 h-4 w-4" /> Registrar Pagamento
+                                        </Button>
+                                    )}
+                                    {status.status === "paid" && (
+                                        <Button className="w-full mt-4" variant="outline" disabled>
+                                            <Check className="mr-2 h-4 w-4" /> Pago em {cost.last_paid_date && format(parseISO(cost.last_paid_date), 'dd/MM')}
+                                        </Button>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        );
+                    })}
+                    {costs.length === 0 && !loading && (
+                        <div className="col-span-full text-center py-10 text-muted-foreground">
+                            Nenhum custo fixo cadastrado.
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                    )}
+                </div>
+
+                {/* Add/Edit Modal */}
+                <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>{selectedCost ? "Editar Custo Fixo" : "Novo Custo Fixo"}</DialogTitle>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
                             <div className="grid gap-2">
-                                <Label>Valor</Label>
-                                <Input type="number" value={formData.amount} onChange={(e) => setFormData({ ...formData, amount: e.target.value })} placeholder="0.00" />
+                                <Label>Título</Label>
+                                <Input value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} placeholder="Ex: Aluguel" />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="grid gap-2">
+                                    <Label>Valor</Label>
+                                    <Input type="number" value={formData.amount} onChange={(e) => setFormData({ ...formData, amount: e.target.value })} placeholder="0.00" />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>Dia de Vencimento</Label>
+                                    <Input type="number" min="1" max="31" value={formData.due_day} onChange={(e) => setFormData({ ...formData, due_day: e.target.value })} />
+                                </div>
                             </div>
                             <div className="grid gap-2">
-                                <Label>Dia de Vencimento</Label>
-                                <Input type="number" min="1" max="31" value={formData.due_day} onChange={(e) => setFormData({ ...formData, due_day: e.target.value })} />
+                                <Label>Categoria</Label>
+                                <Select value={formData.category} onValueChange={(val) => setFormData({ ...formData, category: val })}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecione" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {categorias.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Método de Pagamento Padrão</Label>
+                                <Select value={formData.payment_method} onValueChange={(val) => setFormData({ ...formData, payment_method: val })}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecione" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {categorias.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                                        <SelectItem value="Débito">Débito</SelectItem>
+                                        <SelectItem value="Pix">Pix</SelectItem>
+                                        <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                                        <SelectItem value="Crédito">Crédito</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-0.5">
+                                    <Label>Gerar Automaticamente</Label>
+                                    <p className="text-xs text-muted-foreground">
+                                        Criar uma despesa pendente automaticamente
+                                    </p>
+                                </div>
+                                <input
+                                    type="checkbox"
+                                    checked={formData.auto_generate}
+                                    onChange={(e) => setFormData({ ...formData, auto_generate: e.target.checked })}
+                                    className="h-5 w-5 rounded border-gray-300"
+                                />
                             </div>
                         </div>
-                        <div className="grid gap-2">
-                            <Label>Categoria</Label>
-                            <Select value={formData.category} onValueChange={(val) => setFormData({ ...formData, category: val })}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Selecione" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {categorias.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="grid gap-2">
-                            <Label>Método de Pagamento Padrão</Label>
-                            <Select value={formData.payment_method} onValueChange={(val) => setFormData({ ...formData, payment_method: val })}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Selecione" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {categorias.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-                                    <SelectItem value="Débito">Débito</SelectItem>
-                                    <SelectItem value="Pix">Pix</SelectItem>
-                                    <SelectItem value="Dinheiro">Dinheiro</SelectItem>
-                                    <SelectItem value="Crédito">Crédito</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="flex items-center justify-between">
-                            <div className="space-y-0.5">
-                                <Label>Gerar Automaticamente</Label>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsAddOpen(false)}>Cancelar</Button>
+                            <Button onClick={handleSave}>Salvar</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Pay Modal */}
+                <Dialog open={isPayOpen} onOpenChange={setIsPayOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Registrar Pagamento</DialogTitle>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            <div className="grid gap-2">
+                                <Label>Valor a pagar</Label>
+                                <Input type="number" value={payData.amount} onChange={(e) => setPayData({ ...payData, amount: e.target.value })} />
                                 <p className="text-xs text-muted-foreground">
-                                    Criar uma despesa pendente automaticamente
+                                    O valor original era R$ {selectedCost?.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                 </p>
                             </div>
-                            <input
-                                type="checkbox"
-                                checked={formData.auto_generate}
-                                onChange={(e) => setFormData({ ...formData, auto_generate: e.target.checked })}
-                                className="h-5 w-5 rounded border-gray-300"
-                            />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsAddOpen(false)}>Cancelar</Button>
-                        <Button onClick={handleSave}>Salvar</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
 
-            {/* Pay Modal */}
-            <Dialog open={isPayOpen} onOpenChange={setIsPayOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Registrar Pagamento</DialogTitle>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                            <Label>Valor a pagar</Label>
-                            <Input type="number" value={payData.amount} onChange={(e) => setPayData({ ...payData, amount: e.target.value })} />
-                            <p className="text-xs text-muted-foreground">
-                                O valor original era R$ {selectedCost?.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                            </p>
+                            <div className="grid gap-2">
+                                <Label>Data do Pagamento</Label>
+                                <Input type="date" value={payData.date} onChange={(e) => setPayData({ ...payData, date: e.target.value })} />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Forma de Pagamento</Label>
+                                <Select value={payData.method} onValueChange={(val: any) => setPayData({ ...payData, method: val })}>
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Débito">Débito</SelectItem>
+                                        <SelectItem value="Pix">Pix</SelectItem>
+                                        <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                                        <SelectItem value="Crédito">Crédito</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
-
-                        <div className="grid gap-2">
-                            <Label>Data do Pagamento</Label>
-                            <Input type="date" value={payData.date} onChange={(e) => setPayData({ ...payData, date: e.target.value })} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label>Forma de Pagamento</Label>
-                            <Select value={payData.method} onValueChange={(val: any) => setPayData({ ...payData, method: val })}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Débito">Débito</SelectItem>
-                                    <SelectItem value="Pix">Pix</SelectItem>
-                                    <SelectItem value="Dinheiro">Dinheiro</SelectItem>
-                                    <SelectItem value="Crédito">Crédito</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsPayOpen(false)}>Cancelar</Button>
-                        <Button onClick={handlePay} className="bg-green-600 hover:bg-green-700 text-white">Confirmar Pagamento</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsPayOpen(false)}>Cancelar</Button>
+                            <Button onClick={handlePay} className="bg-green-600 hover:bg-green-700 text-white">Confirmar Pagamento</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            </div>
         </div>
     );
 };
