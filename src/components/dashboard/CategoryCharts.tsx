@@ -65,20 +65,25 @@ export const CategoryCharts = ({ despesas }: CategoryChartsProps) => {
               <BarChart
                 data={top8ChartData}
                 layout="vertical"
-                margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
+                margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
               >
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} vertical={true} stroke="hsl(var(--border))" />
                 <XAxis
                   type="number"
                   tickFormatter={(value) => `R$ ${value.toFixed(0)}`}
                   stroke="hsl(var(--foreground))"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
                 />
                 <YAxis
                   type="category"
                   dataKey="name"
-                  width={120}
+                  width={100}
                   stroke="hsl(var(--foreground))"
-                  tick={{ fontSize: 12 }}
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
                 />
                 <Tooltip
                   formatter={(value: number) => formatCurrency(value)}

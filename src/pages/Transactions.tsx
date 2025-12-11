@@ -88,10 +88,7 @@ export default function Transactions() {
             ].sort((a, b) => (b.id || 0) - (a.id || 0));
 
             setDespesas(todasDespesas);
-            toast({
-                title: "Dados atualizados",
-                description: `${todasDespesas.length} despesas carregadas com sucesso.`,
-            });
+            // Toast removido conforme solicitado
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : "Erro ao carregar dados";
             toast({

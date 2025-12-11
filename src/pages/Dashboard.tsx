@@ -98,10 +98,7 @@ const Dashboard = () => {
       ].sort((a, b) => (b.id || 0) - (a.id || 0));
 
       setDespesas(todasDespesas);
-      toast({
-        title: "Dados atualizados",
-        description: `${todasDespesas.length} despesas carregadas com sucesso.`,
-      });
+      // Toast removido conforme solicitado
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Erro ao carregar dados";
       setError(errorMessage);
@@ -729,7 +726,7 @@ const Dashboard = () => {
       <div className="max-w-7xl mx-auto space-y-8">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+            <h1 className="text-2xl md:text-3xl font-bold text-primary tracking-tight">
               Fin DantasInfo
             </h1>
             <p className="text-muted-foreground hidden md:block">
