@@ -704,7 +704,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 p-4 md:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 p-2 md:p-8">
       <div className="max-w-7xl mx-auto space-y-8">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div>
@@ -716,67 +716,88 @@ const Dashboard = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-4 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm p-2 rounded-xl border border-white/20 shadow-sm">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handlePreviousMonth}
-              className="h-10 w-10 hover:bg-primary/10 hover:text-primary transition-colors"
-              title="Mês anterior"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
+          <div className="flex flex-col sm:flex-row items-center gap-4 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm p-3 rounded-xl border border-white/20 shadow-sm w-full sm:w-auto">
+            {/* Controles de Mês */}
+            <div className="flex items-center justify-between w-full sm:w-auto gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handlePreviousMonth}
+                className="hover:bg-primary/10 hover:text-primary"
+              >
+                <ChevronLeft className="h-6 w-6" />
+              </Button>
 
-            <div className="px-6 py-2 bg-primary rounded-lg min-w-[160px] text-center shadow-sm">
-              <span className="text-base font-semibold text-white">
-                {getCurrentPeriodLabel()}
-              </span>
+              <div className="min-w-[140px] text-center">
+                {/* Select Mês */}
+                <Select
+                  value={mesSelecionado?.toString()}
+                  onValueChange={(val) => {
+                    setMesSelecionado(parseInt(val));
+                    // Resetar datas manuais se selecionar mês
+                    setDataInicio("");
+                    setDataFim("");
+                  }}
+                >
+                  <SelectTrigger className="bg-transparent border-none text-lg font-bold shadow-none focus:ring-0 justify-center gap-2">
+                    <SelectValue placeholder="Mês" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {periodosMensais.map((p, idx) => (
+                      <SelectItem key={idx} value={(idx + 1).toString()}>
+                        {p.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="text-xs text-muted-foreground block -mt-1">
+                  {periodosMensais[mesSelecionado ? mesSelecionado - 1 : currentMonthIndex]?.periodo || ""}
+                </span>
+              </div>
+
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleNextMonth}
+                className="hover:bg-primary/10 hover:text-primary"
+              >
+                <ChevronRight className="h-6 w-6" />
+              </Button>
             </div>
 
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleNextMonth}
-              className="h-10 w-10 hover:bg-primary/10 hover:text-primary transition-colors"
-              title="Próximo mês"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </Button>
+            <div className="hidden sm:block h-8 w-px bg-border mx-2" />
 
-            <div className="w-px h-8 bg-border mx-2" />
+            {/* Controles de Ano e Refresh - Em linha no mobile também, mas separada do mês */}
+            <div className="flex items-center gap-4 w-full sm:w-auto justify-center">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <Select
+                  value={anoSelecionado.toString()}
+                  onValueChange={(val) => setAnoSelecionado(parseInt(val))}
+                >
+                  <SelectTrigger className="w-[100px] bg-transparent border-none shadow-none focus:ring-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[2024, 2025, 2026, 2027].map((ano) => (
+                      <SelectItem key={ano} value={ano.toString()}>
+                        {ano}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <Select
-              value={anoSelecionado.toString()}
-              onValueChange={(value) => {
-                const novoAno = parseInt(value);
-                setAnoSelecionado(novoAno);
-                const mes = mesSelecionado || (currentMonthIndex + 1);
-                handleSelecionarMes(mes, novoAno);
-              }}
-            >
-              <SelectTrigger className="w-[100px] h-10 bg-white/80 dark:bg-slate-800/80 border-primary/20 focus:ring-primary">
-                <Calendar className="h-4 w-4 mr-2 text-primary" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="2025">2025</SelectItem>
-                <SelectItem value="2026">2026</SelectItem>
-                <SelectItem value="2027">2027</SelectItem>
-                <SelectItem value="2028">2028</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <div className="w-px h-8 bg-border mx-2" />
-
-            <Button
-              variant="ghost"
-              onClick={fetchDespesas}
-              size="icon"
-              className="h-10 w-10 hover:bg-primary/10 hover:text-primary transition-colors"
-              title="Atualizar dados"
-            >
-              <RefreshCw className="h-5 w-5" />
-            </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={fetchDespesas}
+                title="Atualizar dados"
+                className="ml-auto sm:ml-0"
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              </Button>
+            </div>
           </div>
         </div>
 

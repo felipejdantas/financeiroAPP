@@ -53,9 +53,9 @@ export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange,
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Cards Principais - Layout Otimizado Mobile: Total (Full) | Credito/Debito (Meio a Meio) */}
-      <div className="grid gap-3 grid-cols-2 md:grid-cols-3">
+      <div className="grid gap-2 grid-cols-2 md:grid-cols-3">
         <Card
           className={`${getCardStyle("total")} col-span-2 md:col-span-1`}
           onClick={() => onFilterChange("total")}
@@ -112,7 +112,7 @@ export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange,
       </div>
 
       {/* Cards por Responsável e Custo Fixo - Grid 2 colunas no mobile */}
-      <div className="grid gap-3 grid-cols-2 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-2 grid-cols-2 md:grid-cols-2 lg:grid-cols-4">
         {totaisPorResponsavel.map((item) => (
           <Card
             key={item.nome}
