@@ -706,12 +706,12 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-8">
-        <div className="flex flex-col gap-6 lg:flex-row lg:justify-between lg:items-end">
-          <div className="space-y-2">
-            <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
               Fin DantasInfo
             </h1>
-            <p className="text-base text-slate-600 dark:text-slate-400 font-medium">
+            <p className="text-muted-foreground hidden md:block">
               Gerencie suas despesas de forma inteligente
             </p>
           </div>

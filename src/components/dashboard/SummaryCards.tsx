@@ -54,20 +54,20 @@ export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange,
 
   return (
     <div className="space-y-4">
-      {/* Cards Principais */}
-      <div className="grid gap-4 md:grid-cols-3">
+      {/* Cards Principais - Layout Otimizado Mobile: Total (Full) | Credito/Debito (Meio a Meio) */}
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-3">
         <Card
-          className={getCardStyle("total")}
+          className={`${getCardStyle("total")} col-span-2 md:col-span-1`}
           onClick={() => onFilterChange("total")}
         >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
             <CardTitle className="text-sm font-medium text-card-foreground">
               Total Geral
             </CardTitle>
-            <Wallet className="h-5 w-5 text-primary" />
+            <Wallet className="h-4 w-4 text-primary" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-card-foreground">{formatCurrency(totalGeral)}</div>
+          <CardContent className="p-4 pt-0">
+            <div className="text-xl md:text-2xl font-bold text-card-foreground">{formatCurrency(totalGeral)}</div>
             <p className="text-xs text-muted-foreground">
               {despesas.length + despesasPendentes.length} {despesas.length + despesasPendentes.length === 1 ? 'despesa' : 'despesas'}
             </p>
@@ -75,59 +75,59 @@ export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange,
         </Card>
 
         <Card
-          className={getCardStyle("credito")}
+          className={`${getCardStyle("credito")} col-span-1`}
           onClick={() => onFilterChange("credito")}
         >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-card-foreground">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
+            <CardTitle className="text-xs md:text-sm font-medium text-card-foreground truncate">
               Crédito
             </CardTitle>
-            <CreditCard className="h-5 w-5 text-blue-500" />
+            <CreditCard className="h-4 w-4 text-blue-500" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-card-foreground">{formatCurrency(totalCredito)}</div>
-            <p className="text-xs text-muted-foreground">
-              Cartão de crédito
+          <CardContent className="p-4 pt-0">
+            <div className="text-lg md:text-2xl font-bold text-card-foreground truncate">{formatCurrency(totalCredito)}</div>
+            <p className="text-[10px] md:text-xs text-muted-foreground truncate">
+              Cartão
             </p>
           </CardContent>
         </Card>
 
         <Card
-          className={getCardStyle("outros")}
+          className={`${getCardStyle("outros")} col-span-1`}
           onClick={() => onFilterChange("outros")}
         >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-card-foreground">
-              Pix, Débito e Dinheiro
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
+            <CardTitle className="text-xs md:text-sm font-medium text-card-foreground truncate">
+              Outros
             </CardTitle>
-            <Banknote className="h-5 w-5 text-green-500" />
+            <Banknote className="h-4 w-4 text-green-500" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-card-foreground">{formatCurrency(totalOutros)}</div>
-            <p className="text-xs text-muted-foreground">
-              Outros meios de pagamento
+          <CardContent className="p-4 pt-0">
+            <div className="text-lg md:text-2xl font-bold text-card-foreground truncate">{formatCurrency(totalOutros)}</div>
+            <p className="text-[10px] md:text-xs text-muted-foreground truncate">
+              Pix/Débito/$$
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Cards por Responsável e Custo Fixo */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {/* Cards por Responsável e Custo Fixo - Grid 2 colunas no mobile */}
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-2 lg:grid-cols-4">
         {totaisPorResponsavel.map((item) => (
           <Card
             key={item.nome}
             className={getCardStyle("responsavel", item.nome)}
             onClick={() => onFilterChange("responsavel", item.nome)}
           >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-card-foreground">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
+              <CardTitle className="text-xs md:text-sm font-medium text-card-foreground truncate">
                 {item.nome}
               </CardTitle>
-              <User className="h-5 w-5 text-muted-foreground" />
+              <User className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-card-foreground">{formatCurrency(item.total)}</div>
-              <p className="text-xs text-muted-foreground">
+            <CardContent className="p-4 pt-0">
+              <div className="text-lg md:text-2xl font-bold text-card-foreground truncate">{formatCurrency(item.total)}</div>
+              <p className="text-[10px] md:text-xs text-muted-foreground truncate">
                 Responsável
               </p>
             </CardContent>
@@ -140,16 +140,16 @@ export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange,
             className={getCardStyle("custo_fixo")}
             onClick={() => onFilterChange("custo_fixo")}
           >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-card-foreground">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
+              <CardTitle className="text-xs md:text-sm font-medium text-card-foreground truncate">
                 Custo Fixo
               </CardTitle>
-              <Banknote className="h-5 w-5 text-orange-500" />
+              <Banknote className="h-4 w-4 text-orange-500" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-card-foreground">{formatCurrency(totalPendentes)}</div>
-              <p className="text-xs text-muted-foreground">
-                Despesas Fixas Pendentes
+            <CardContent className="p-4 pt-0">
+              <div className="text-lg md:text-2xl font-bold text-card-foreground truncate">{formatCurrency(totalPendentes)}</div>
+              <p className="text-[10px] md:text-xs text-muted-foreground truncate">
+                Pendentes
               </p>
             </CardContent>
           </Card>
