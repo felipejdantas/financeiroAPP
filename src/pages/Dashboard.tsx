@@ -47,6 +47,7 @@ const Dashboard = () => {
   const [userId, setUserId] = useState<string | null>(null);
   const [userName, setUserName] = useState<string>("");
   const [despesas, setDespesas] = useState<Despesa[]>([]);
+  const [receitas, setReceitas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
@@ -109,6 +110,21 @@ const Dashboard = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchReceitas = async () => {
+    if (!userId) return;
+    try {
+      const { data, error } = await supabase
+        .from("Financeiro Receita" as any)
+        .select("*")
+        .eq("user_id", userId);
+
+      if (error) throw error;
+      setReceitas(data || []);
+    } catch (error) {
+      console.error("Erro ao carregar receitas:", error);
     }
   };
 
@@ -319,6 +335,7 @@ const Dashboard = () => {
   useEffect(() => {
     if (userId) {
       fetchDespesas();
+      fetchReceitas();
       fetchPeriodosMensais();
       fetchCategoryEmojis();
       fetchCategorias();
@@ -451,6 +468,9 @@ const Dashboard = () => {
   const despesasPendentes = despesas.filter((despesa) =>
     despesa.status === 'pendente' && isDespesaInPeriod(despesa)
   );
+
+  const receitasFiltradas = receitas.filter((receita) => isDespesaInPeriod(receita));
+  const totalReceita = receitasFiltradas.reduce((sum, r) => sum + Number(r.valor || 0), 0);
 
   const handleAddOrUpdate = async (despesa: Omit<Despesa, "id"> & { id?: number }) => {
     if (!userId) return;
@@ -829,6 +849,7 @@ const Dashboard = () => {
           despesasPendentes={despesasPendentes}
           onFilterChange={handleSummaryFilterChange}
           activeFilter={activeSummaryFilter}
+          totalReceita={totalReceita}
         />
 
 

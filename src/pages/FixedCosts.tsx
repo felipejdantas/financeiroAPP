@@ -21,6 +21,7 @@ interface FixedCost {
     last_paid_date?: string;
     auto_generate?: boolean;
     payment_method?: string;
+    total_cycles?: number;
 }
 
 export const FixedCosts = () => {
@@ -41,7 +42,8 @@ export const FixedCosts = () => {
         due_day: "",
         description: "",
         auto_generate: true,
-        payment_method: "Débito"
+        payment_method: "Débito",
+        total_cycles: ""
     });
 
     const [payData, setPayData] = useState({
@@ -103,7 +105,8 @@ export const FixedCosts = () => {
                 due_day: parseInt(formData.due_day),
                 description: formData.description,
                 auto_generate: false, // BYPASS DB TRIGGER enforced
-                payment_method: formData.payment_method
+                payment_method: formData.payment_method,
+                total_cycles: formData.total_cycles ? parseInt(formData.total_cycles) : null
             };
 
             let savedCostId: number;
@@ -156,8 +159,6 @@ export const FixedCosts = () => {
         }
     };
 
-    // --- LOGICA DE GERAÇÃO (FRONTEND) ---
-    // Agora gera 12 meses para frente garantido
     // --- LOGICA DE GERAÇÃO (FRONTEND) OTIMIZADA ---
     // Gera 24 meses para frente em lote (Batch) para evitar lentidão
     const handleAutoGenerateInFrontend = async (userId: string, cost: any) => {
@@ -169,6 +170,15 @@ export const FixedCosts = () => {
                 .from(tableName)
                 .select('Data')
                 .eq('fixed_cost_id', cost.id);
+
+            // Check Cycle Limit
+            const maxCycles = cost.total_cycles;
+            let currentCount = existingExpenses?.length || 0;
+
+            if (maxCycles && currentCount >= maxCycles) {
+                console.log(`Limite de parcelas atingido para ${cost.title}: ${currentCount}/${maxCycles}`);
+                return;
+            }
 
             // Set de datas existentes para busca rápida (formato MM/yyyy)
             const existingDates = new Set(
@@ -185,6 +195,11 @@ export const FixedCosts = () => {
 
             // 2. Loop local de cálculo (sem chamadas ao banco)
             for (let i = 0; i < 24; i++) {
+                // Se temos limite, paramos quando atingir
+                if (maxCycles && (currentCount + toInsert.length) >= maxCycles) {
+                    break;
+                }
+
                 let targetDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, 1);
 
                 // Safe Day Logic
@@ -201,13 +216,21 @@ export const FixedCosts = () => {
 
                 // Adiciona ao array de inserção em massa
                 const dateStr = format(targetDate, "dd/MM/yyyy");
+
+                // Formatar descrição da parcela se tiver limite
+                let descricao = `${cost.title} (Custo Fixo)`;
+                if (maxCycles) {
+                    const parcelaNum = currentCount + toInsert.length + 1;
+                    descricao = `${cost.title} (${parcelaNum}/${maxCycles})`;
+                }
+
                 toInsert.push({
                     user_id: userId,
                     "Responsavel": 'Sistema',
                     "Tipo": cost.payment_method,
                     "Categoria": cost.category,
                     "Parcelas": 'A vista',
-                    "Descrição": `${cost.title} (Custo Fixo)`,
+                    "Descrição": descricao,
                     "Data": dateStr,
                     "valor": cost.amount,
                     "status": 'pendente',
@@ -294,6 +317,45 @@ export const FixedCosts = () => {
 
             // 1. Insert into expenses (PAGO)
             const tableName = payData.method === "Crédito" ? "Financeiro Cartão" : "Financeiro Debito";
+
+            // Se tiver limite, precisamos saber qual parcela é essa.
+            // Poderíamos buscar o count novamente, mas é complexo em tempo real.
+            // Para simplificar, vamos salvar a descrição padrão, mas se já tiver sido gerada como pendente,
+            // ela já terá a descrição certa (Ex: 5/24).
+            // MAS o handlePay cria uma NOVA se não achar pendente? Não, ele remove pendente.
+            // SE ele está criando uma NOVA (pagamento adiantado ou manual), a descrição vai padrão.
+            // Idealmente deveríamos 'promover' a pendente a paga, em vez de deletar e criar.
+            // Mas o sistema atual: Insert Nova -> Delete Pendente.
+
+            // Vamos tentar pegar a descrição da pendente que estamos deletando?
+            // "Lógica de Limpeza Frontend" abaixo busca por DATA e DELETE.
+            // Se acharmos essa pendente ANTES, podemos usar a descrição dela.
+
+            const payDate = parseISO(payData.date);
+            const monthStr = format(payDate, 'MM/yyyy');
+
+            // Busca Pendente para pegar a descrição correta (Ex: Parcela 5/24)
+            let existingDescription = `${selectedCost.title} (Custo Fixo)`;
+
+            const { data: pendentesCartao } = await supabase
+                .from("Financeiro Cartão")
+                .select("Descrição")
+                .eq('fixed_cost_id', selectedCost.id)
+                .eq('status', 'pendente')
+                .ilike('Data', `%/${monthStr}`)
+                .limit(1);
+
+            const { data: pendentesDebito } = await supabase
+                .from("Financeiro Debito")
+                .select("Descrição")
+                .eq('fixed_cost_id', selectedCost.id)
+                .eq('status', 'pendente')
+                .ilike('Data', `%/${monthStr}`)
+                .limit(1);
+
+            if (pendentesCartao && pendentesCartao.length > 0) existingDescription = pendentesCartao[0].Descrição;
+            else if (pendentesDebito && pendentesDebito.length > 0) existingDescription = pendentesDebito[0].Descrição;
+
             const { error: insertError } = await supabase
                 .from(tableName)
                 .insert([{
@@ -302,8 +364,8 @@ export const FixedCosts = () => {
                     Tipo: payData.method,
                     Categoria: selectedCost.category,
                     Parcelas: "A vista",
-                    Descrição: `${selectedCost.title} (Custo Fixo)`,
-                    Data: format(parseISO(payData.date), "dd/MM/yyyy"),
+                    Descrição: existingDescription, // Usa descrição com numeração se existir
+                    Data: format(payDate, "dd/MM/yyyy"),
                     valor: parseFloat(payData.amount),
                     fixed_cost_id: selectedCost.id, // VINCULO IMPORTANTE
                     created_at: new Date().toISOString()
@@ -312,10 +374,6 @@ export const FixedCosts = () => {
             if (insertError) throw insertError;
 
             // 2. Procurar e Remover a pendência deste mês (Lógica de Limpeza Frontend)
-            // A data do pagamento define qual mês estamos pagando.
-            const payDate = parseISO(payData.date);
-            const monthStr = format(payDate, 'MM/yyyy');
-
             // Remove do Cartão (se houver pendencia lá)
             await supabase.from("Financeiro Cartão")
                 .delete()
@@ -359,7 +417,8 @@ export const FixedCosts = () => {
             due_day: "",
             description: "",
             auto_generate: true,
-            payment_method: "Débito"
+            payment_method: "Débito",
+            total_cycles: ""
         });
         setSelectedCost(null);
     };
@@ -432,6 +491,11 @@ export const FixedCosts = () => {
                                                     <span>Vencimento: {format(new Date(new Date().getFullYear(), new Date().getMonth(), cost.due_day), "dd/MM/yyyy")}</span>
                                                 )}
                                             </div>
+                                            {cost.total_cycles && ( // VISUALIZAÇÃO DO TOTAL DE PARCELAS
+                                                <div className="text-xs text-muted-foreground mt-2 font-medium">
+                                                    Limite: {cost.total_cycles} parcelas
+                                                </div>
+                                            )}
                                         </div>
 
                                         <div className="flex gap-2">
@@ -444,7 +508,8 @@ export const FixedCosts = () => {
                                                     due_day: cost.due_day.toString(),
                                                     description: cost.description || "",
                                                     auto_generate: cost.auto_generate ?? true,
-                                                    payment_method: cost.payment_method || "Débito"
+                                                    payment_method: cost.payment_method || "Débito",
+                                                    total_cycles: cost.total_cycles ? cost.total_cycles.toString() : ""
                                                 });
                                                 setIsAddOpen(true);
                                             }}>
@@ -497,6 +562,16 @@ export const FixedCosts = () => {
                                     <Label>Dia de Vencimento</Label>
                                     <Input type="number" min="1" max="31" value={formData.due_day} onChange={(e) => setFormData({ ...formData, due_day: e.target.value })} />
                                 </div>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Total de Parcelas (Opcional)</Label>
+                                <Input
+                                    type="number"
+                                    min="1"
+                                    placeholder="Ex: 24 (Deixe vazio para infinito)"
+                                    value={formData.total_cycles}
+                                    onChange={(e) => setFormData({ ...formData, total_cycles: e.target.value })}
+                                />
                             </div>
                             <div className="grid gap-2">
                                 <Label>Categoria</Label>
