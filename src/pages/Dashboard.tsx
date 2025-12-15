@@ -472,6 +472,46 @@ const Dashboard = () => {
   const receitasFiltradas = receitas.filter((receita) => isDespesaInPeriod(receita));
   const totalReceita = receitasFiltradas.reduce((sum, r) => sum + Number(r.valor || 0), 0);
 
+  const calcularSaldoAcumulado = () => {
+    if (!dataFim) return 0;
+
+    // Data limite é o final do período selecionado
+    // Como a string dataFim vem 'yyyy-MM-dd', criamos uma data e ajustamos para o final do dia
+    const dataLimite = inputToDate(dataFim);
+    dataLimite.setHours(23, 59, 59, 999);
+
+    const dataLimiteTime = dataLimite.getTime();
+
+    // Receitas acumuladas até o momento
+    const receitasAteMomento = receitas.filter(r => {
+      // Assumindo que r.Data está em 'dd/MM/yyyy' ou 'yyyy-MM-dd'. 
+      // O código usa brToDate e inputToDate. Vamos verificar.
+      // Supabase retorna 'yyyy-MM-dd' se for date type, ou string.
+      // O código existente usa brToDate(despesa.Data). Vamos seguir o padrão.
+      const d = brToDate(r.Data || r.data); // Fallback para lowercase se necessário
+      return d.getTime() <= dataLimiteTime;
+    });
+
+    // Despesas acumuladas (Pix, Débito, Dinheiro) até o momento, excluindo pendentes
+    const despesasAteMomento = despesas.filter(d => {
+      if (d.status === 'pendente') return false;
+
+      const tipo = d.Tipo; // O tipo na interface é Capitalized
+      const aceitos = ["Pix", "Débito", "Dinheiro", "pix", "débito", "dinheiro"];
+      if (!aceitos.includes(tipo)) return false;
+
+      const dData = brToDate(d.Data);
+      return dData.getTime() <= dataLimiteTime;
+    });
+
+    const totalR = receitasAteMomento.reduce((sum, r) => sum + Number(r.valor || 0), 0);
+    const totalD = despesasAteMomento.reduce((sum, d) => sum + Number(d.valor || 0), 0);
+
+    return totalR - totalD;
+  };
+
+  const saldoAcumulado = calcularSaldoAcumulado();
+
   const handleAddOrUpdate = async (despesa: Omit<Despesa, "id"> & { id?: number }) => {
     if (!userId) return;
 
@@ -850,6 +890,7 @@ const Dashboard = () => {
           onFilterChange={handleSummaryFilterChange}
           activeFilter={activeSummaryFilter}
           totalReceita={totalReceita}
+          saldoAcumulado={saldoAcumulado}
         />
 
 

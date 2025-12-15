@@ -8,12 +8,23 @@ interface SummaryCardsProps {
   onFilterChange: (type: string, value?: string) => void;
   activeFilter: { type: string; value?: string } | null;
   totalReceita: number;
+  saldoAcumulado?: number;
 }
 
-export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange, activeFilter, totalReceita }: SummaryCardsProps) => {
+export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange, activeFilter, totalReceita, saldoAcumulado }: SummaryCardsProps) => {
   const totalPendentes = despesasPendentes.reduce((sum, d) => sum + (d.valor || 0), 0);
   const totalGeral = despesas.reduce((sum, d) => sum + d.valor, 0) + totalPendentes;
-  const saldo = totalReceita - totalGeral;
+
+  // Saldo real considers only direct payments (Pix, Debit, Cash)
+  // It specifically Excludes Credit Card (which are future payments) and Pending items
+  const totalDirectExpenses = despesas
+    .filter((d) => ["Pix", "Débito", "Dinheiro"].includes(d.Tipo))
+    .reduce((sum, d) => sum + d.valor, 0);
+
+  const saldo = totalReceita - totalDirectExpenses;
+
+  // Use acumulado if provided, otherwise calculate local (fallback)
+  const saldoFinal = saldoAcumulado !== undefined ? saldoAcumulado : saldo;
 
   // Separar por tipo de pagamento
   const totalCredito = despesas
@@ -55,76 +66,94 @@ export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange,
   };
 
   return (
-    <div className="space-y-3">
-      {/* Cards Principais */}
-      <div className="grid gap-2 grid-cols-2 md:grid-cols-3">
-        {/* Receitas */}
-        <Card className="bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
-            <CardTitle className="text-sm font-medium text-emerald-900 dark:text-emerald-400">
-              Receitas Totais
+    <div className="space-y-4">
+      {/* Linha 1: Saldo, Receita, Despesas (Diretas) */}
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
+        {/* Saldo - Posição 1 */}
+        <Card className={`${saldo >= 0 ? 'bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800' : 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800'}`}>
+          <CardHeader className="flex flex-row items-center justify-center gap-2 space-y-0 p-4 pb-2">
+            <CardTitle className={`text-sm font-medium ${saldoFinal >= 0 ? 'text-blue-900 dark:text-blue-400' : 'text-red-900 dark:text-red-400'}`}>
+              Saldo
             </CardTitle>
-            <ArrowUpCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <Scale className={`h-4 w-4 ${saldoFinal >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}`} />
           </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="text-xl md:text-2xl font-bold text-emerald-700 dark:text-emerald-300">
-              {formatCurrency(totalReceita)}
+          <CardContent className="p-4 pt-0 text-center">
+            <div className={`text-xl md:text-2xl font-bold ${saldoFinal >= 0 ? 'text-blue-700 dark:text-blue-300' : 'text-red-700 dark:text-red-300'}`}>
+              {formatCurrency(saldoFinal)}
             </div>
-            <p className="text-xs text-emerald-600/60 dark:text-emerald-400/60">
-              Entradas no período
+            <p className={`text-xs ${saldoFinal >= 0 ? 'text-blue-600/60 dark:text-blue-400/60' : 'text-red-600/60 dark:text-red-400/60'}`}>
+              Receitas - Despesas (Acumulado)
             </p>
           </CardContent>
         </Card>
 
-        {/* Despesas (Total Geral) */}
+        {/* Receita - Posição 2 */}
+        <Card className="bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800">
+          <CardHeader className="flex flex-row items-center justify-center gap-2 space-y-0 p-4 pb-2">
+            <CardTitle className="text-sm font-medium text-emerald-900 dark:text-emerald-400">
+              Receita
+            </CardTitle>
+            <ArrowUpCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+          </CardHeader>
+          <CardContent className="p-4 pt-0 text-center">
+            <div className="text-xl md:text-2xl font-bold text-emerald-700 dark:text-emerald-300">
+              {formatCurrency(totalReceita)}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Despesas (antigo Outros/Diretas) - Posição 3 */}
         <Card
-          className={`${getCardStyle("total")} col-span-1`}
+          className={`${getCardStyle("outros")}`}
+          onClick={() => onFilterChange("outros")}
+        >
+          <CardHeader className="flex flex-row items-center justify-center gap-2 space-y-0 p-4 pb-2">
+            <CardTitle className="text-xs md:text-sm font-medium text-card-foreground truncate">
+              Despesas
+            </CardTitle>
+            <Banknote className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent className="p-4 pt-0 text-center">
+            <div className="text-lg md:text-2xl font-bold text-card-foreground truncate">{formatCurrency(totalOutros)}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Linha 2: Total Despesas (Full Width) */}
+      <div className="grid gap-4 grid-cols-1">
+        <Card
+          className={`${getCardStyle("total")}`}
           onClick={() => onFilterChange("total")}
         >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
+          <CardHeader className="flex flex-row items-center justify-center gap-2 space-y-0 p-4 pb-2">
             <CardTitle className="text-sm font-medium text-card-foreground">
-              Total Despesas
+              Total das Despesas
             </CardTitle>
             <ArrowDownCircle className="h-4 w-4 text-red-500" />
           </CardHeader>
-          <CardContent className="p-4 pt-0">
+          <CardContent className="p-4 pt-0 text-center">
             <div className="text-xl md:text-2xl font-bold text-card-foreground">{formatCurrency(totalGeral)}</div>
             <p className="text-xs text-muted-foreground">
               {despesas.length + despesasPendentes.length} registros
             </p>
           </CardContent>
         </Card>
+      </div>
 
-        {/* Saldo */}
-        <Card className={`col-span-2 md:col-span-1 ${saldo >= 0 ? 'bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800' : 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800'}`}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
-            <CardTitle className={`text-sm font-medium ${saldo >= 0 ? 'text-blue-900 dark:text-blue-400' : 'text-red-900 dark:text-red-400'}`}>
-              Saldo
-            </CardTitle>
-            <Scale className={`h-4 w-4 ${saldo >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-600 dark:text-red-400'}`} />
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className={`text-xl md:text-2xl font-bold ${saldo >= 0 ? 'text-blue-700 dark:text-blue-300' : 'text-red-700 dark:text-red-300'}`}>
-              {formatCurrency(saldo)}
-            </div>
-            <p className={`text-xs ${saldo >= 0 ? 'text-blue-600/60 dark:text-blue-400/60' : 'text-red-600/60 dark:text-red-400/60'}`}>
-              Receitas - Despesas
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Crédito */}
+      {/* Linha 3: Cartão de Crédito e Despesas Fixas */}
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+        {/* Cartão de Crédito */}
         <Card
-          className={`${getCardStyle("credito")} col-span-1`}
+          className={`${getCardStyle("credito")}`}
           onClick={() => onFilterChange("credito")}
         >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
+          <CardHeader className="flex flex-row items-center justify-center gap-2 space-y-0 p-4 pb-2">
             <CardTitle className="text-xs md:text-sm font-medium text-card-foreground truncate">
               Cartão de Crédito
             </CardTitle>
             <CreditCard className="h-4 w-4 text-blue-500" />
           </CardHeader>
-          <CardContent className="p-4 pt-0">
+          <CardContent className="p-4 pt-0 text-center">
             <div className="text-lg md:text-2xl font-bold text-card-foreground truncate">{formatCurrency(totalCredito)}</div>
             <p className="text-[10px] md:text-xs text-muted-foreground truncate">
               Faturas
@@ -132,27 +161,31 @@ export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange,
           </CardContent>
         </Card>
 
-        {/* Outros */}
-        <Card
-          className={`${getCardStyle("outros")} col-span-1`}
-          onClick={() => onFilterChange("outros")}
-        >
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
-            <CardTitle className="text-xs md:text-sm font-medium text-card-foreground truncate">
-              Outras Despesas
-            </CardTitle>
-            <Banknote className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="text-lg md:text-2xl font-bold text-card-foreground truncate">{formatCurrency(totalOutros)}</div>
-            <p className="text-[10px] md:text-xs text-muted-foreground truncate">
-              Pix, Débito, Dinheiro
-            </p>
-          </CardContent>
-        </Card>
+        {/* Despesas Fixas */}
+        {totalPendentes > 0 ? (
+          <Card
+            className={getCardStyle("custo_fixo")}
+            onClick={() => onFilterChange("custo_fixo")}
+          >
+            <CardHeader className="flex flex-row items-center justify-center gap-2 space-y-0 p-4 pb-2">
+              <CardTitle className="text-xs md:text-sm font-medium text-card-foreground truncate">
+                Despesas Fixas
+              </CardTitle>
+              <Banknote className="h-4 w-4 text-orange-500" />
+            </CardHeader>
+            <CardContent className="p-4 pt-0 text-center">
+              <div className="text-lg md:text-2xl font-bold text-card-foreground truncate">{formatCurrency(totalPendentes)}</div>
+              <p className="text-[10px] md:text-xs text-muted-foreground truncate">
+                Pendentes
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="hidden md:block"></div> /* Espaço vazio se não houver pendentes, manter grid? */
+        )}
       </div>
 
-      {/* Cards por Responsável e Custo Fixo - Grid 2 colunas no mobile */}
+      {/* Linha 4: Responsáveis */}
       <div className="grid gap-2 grid-cols-2 md:grid-cols-2 lg:grid-cols-4">
         {totaisPorResponsavel.map((item) => (
           <Card
@@ -160,13 +193,13 @@ export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange,
             className={getCardStyle("responsavel", item.nome)}
             onClick={() => onFilterChange("responsavel", item.nome)}
           >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
+            <CardHeader className="flex flex-row items-center justify-center gap-2 space-y-0 p-4 pb-2">
               <CardTitle className="text-xs md:text-sm font-medium text-card-foreground truncate">
                 {item.nome}
               </CardTitle>
               <User className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent className="p-4 pt-0">
+            <CardContent className="p-4 pt-0 text-center">
               <div className="text-lg md:text-2xl font-bold text-card-foreground truncate">{formatCurrency(item.total)}</div>
               <p className="text-[10px] md:text-xs text-muted-foreground truncate">
                 Responsável
@@ -174,27 +207,6 @@ export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange,
             </CardContent>
           </Card>
         ))}
-
-        {/* Card de Custo Fixo (Despesas Pendentes) */}
-        {totalPendentes > 0 && (
-          <Card
-            className={getCardStyle("custo_fixo")}
-            onClick={() => onFilterChange("custo_fixo")}
-          >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
-              <CardTitle className="text-xs md:text-sm font-medium text-card-foreground truncate">
-                Custo Fixo
-              </CardTitle>
-              <Banknote className="h-4 w-4 text-orange-500" />
-            </CardHeader>
-            <CardContent className="p-4 pt-0">
-              <div className="text-lg md:text-2xl font-bold text-card-foreground truncate">{formatCurrency(totalPendentes)}</div>
-              <p className="text-[10px] md:text-xs text-muted-foreground truncate">
-                Pendentes
-              </p>
-            </CardContent>
-          </Card>
-        )}
       </div>
     </div>
   );
