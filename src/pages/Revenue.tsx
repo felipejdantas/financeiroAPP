@@ -161,12 +161,17 @@ export default function Revenue() {
                     .insert([{
                         nome: data.Categoria,
                         user_id: userId,
-                        tipo: "receita" // Assuming 'receita' as type based on context, or default
+                        cor: "#22c55e", // Default green for revenue categories
+                        icone: ""
                     }]);
-                
+
                 if (catError) {
                     console.error("Erro ao criar categoria:", catError);
-                    // Decide if we should block or continue. Continuing for now but logging.
+                    toast({
+                        title: "Aviso",
+                        description: "Receita salva, mas houve um erro ao salvar a nova categoria.",
+                        variant: "destructive"
+                    });
                 } else {
                     // Update local state to include new category immediately
                     setCategoriasDisponiveis(prev => [...prev, data.Categoria].sort());
