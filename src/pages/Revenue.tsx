@@ -154,6 +154,25 @@ export default function Revenue() {
     const handleFormSubmit = async (data: any) => {
         if (!userId) return;
         try {
+            // Verify if category exists, if not create it
+            if (data.Categoria && !categoriasDisponiveis.includes(data.Categoria)) {
+                const { error: catError } = await supabase
+                    .from("categorias" as any)
+                    .insert([{
+                        nome: data.Categoria,
+                        user_id: userId,
+                        tipo: "receita" // Assuming 'receita' as type based on context, or default
+                    }]);
+                
+                if (catError) {
+                    console.error("Erro ao criar categoria:", catError);
+                    // Decide if we should block or continue. Continuing for now but logging.
+                } else {
+                    // Update local state to include new category immediately
+                    setCategoriasDisponiveis(prev => [...prev, data.Categoria].sort());
+                }
+            }
+
             if (editingReceita) {
                 const { error } = await supabase
                     .from("Financeiro Receita" as any)
@@ -181,6 +200,7 @@ export default function Revenue() {
             setFormOpen(false);
             setEditingReceita(null);
             fetchReceitas();
+            fetchCategorias(); // Refresh categories to be sure
         } catch (error: any) {
             console.error("Erro ao salvar:", error);
             toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
