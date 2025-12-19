@@ -28,7 +28,7 @@ const navigation = [
     { name: "Receitas", href: "/revenues", icon: TrendingUp },
     { name: "Despesas", href: "/expenses", icon: CreditCard },
     { name: "Categorias", href: "/categories", icon: Tag },
-    { name: "Custos Fixos", href: "/fixed-costs", icon: Clock },
+    { name: "Despesas Fixas", href: "/fixed-costs", icon: Clock },
     { name: "Planejamento", href: "/planning", icon: Target },
     { name: "Agendamentos", href: "/scheduling", icon: Calendar },
     { name: "Perfil", href: "/profile", icon: User },

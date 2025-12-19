@@ -445,7 +445,7 @@ export const FixedCosts = () => {
             <div className="max-w-7xl mx-auto space-y-6">
                 <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                     <h1 className="text-3xl font-bold text-card-foreground text-center md:text-left">
-                        Custos Fixos
+                        Despesas Fixas
                     </h1>
                     <div className="flex flex-wrap gap-2 justify-center md:justify-end w-full md:w-auto">
                         <Button
