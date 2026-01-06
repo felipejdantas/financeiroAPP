@@ -14,7 +14,7 @@ interface ExportButtonProps {
   despesas: Despesa[];
   filtrosAtivos: {
     responsavel: string;
-    tipo: string;
+    tipo: string[];
     categoria: string;
   };
   simple?: boolean;
@@ -44,8 +44,8 @@ export const ExportButton = ({ despesas, filtrosAtivos, simple = false }: Export
         doc.text(`Responsável: ${filtrosAtivos.responsavel}`, 14, yPos);
         yPos += 5;
       }
-      if (filtrosAtivos?.tipo && filtrosAtivos.tipo !== "todos") {
-        doc.text(`Tipo: ${filtrosAtivos.tipo}`, 14, yPos);
+      if (filtrosAtivos?.tipo && filtrosAtivos.tipo.length > 0) {
+        doc.text(`Tipo: ${filtrosAtivos.tipo.join(", ")}`, 14, yPos);
         yPos += 5;
       }
       if (filtrosAtivos?.categoria && filtrosAtivos.categoria !== "todas") {

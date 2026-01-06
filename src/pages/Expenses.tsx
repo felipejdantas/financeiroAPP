@@ -47,7 +47,7 @@ export default function Expenses() {
     const { toast } = useToast();
 
     const [responsavelFilter, setResponsavelFilter] = useState<ResponsavelFilter>("todos");
-    const [tipoFilter, setTipoFilter] = useState<TipoFilter>("todos");
+    const [tipoFilter, setTipoFilter] = useState<string[]>([]);
     const [categoriaFilter, setCategoriaFilter] = useState("todas");
     const [parcelaFilter, setParcelaFilter] = useState<string[]>([]);
     const [dataInicio, setDataInicio] = useState("");
@@ -211,7 +211,7 @@ export default function Expenses() {
             return false;
         }
 
-        if (tipoFilter !== "todos" && despesa.Tipo !== tipoFilter) {
+        if (tipoFilter.length > 0 && !tipoFilter.includes(despesa.Tipo)) {
             return false;
         }
 
@@ -443,7 +443,7 @@ export default function Expenses() {
 
     const limparFiltros = () => {
         setResponsavelFilter("todos");
-        setTipoFilter("todos");
+        setTipoFilter([]);
         setCategoriaFilter("todas");
         setParcelaFilter([]);
         setDataInicio("");

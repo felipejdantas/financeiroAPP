@@ -12,8 +12,8 @@ import { format } from "date-fns";
 interface FiltersProps {
   responsavelFilter: ResponsavelFilter;
   setResponsavelFilter: (value: ResponsavelFilter) => void;
-  tipoFilter: TipoFilter;
-  setTipoFilter: (value: TipoFilter) => void;
+  tipoFilter: string[];
+  setTipoFilter: (value: string[]) => void;
   categoriaFilter: string;
   setCategoriaFilter: (value: string) => void;
   parcelaFilter: string[];
@@ -220,21 +220,86 @@ export const Filters = ({
               <CreditCard className="h-4 w-4" />
               Tipo
             </Label>
-            <Select
-              value={tipoFilter}
-              onValueChange={(value) => setTipoFilter(value as TipoFilter)}
-            >
-              <SelectTrigger id="tipo" className="bg-secondary border-border">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-popover border-border">
-                <SelectItem value="todos">Todos</SelectItem>
-                <SelectItem value="Crédito">Crédito</SelectItem>
-                <SelectItem value="Débito">Débito</SelectItem>
-                <SelectItem value="Pix">PIX</SelectItem>
-                <SelectItem value="Dinheiro">Dinheiro</SelectItem>
-              </SelectContent>
-            </Select>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start bg-secondary border-border text-card-foreground"
+                >
+                  {tipoFilter.length === 0
+                    ? "Selecionar tipos"
+                    : `${tipoFilter.length} selecionado(s)`}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 bg-popover border-border">
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="tipo-credito"
+                      checked={tipoFilter.includes("Crédito")}
+                      onCheckedChange={(checked) => {
+                        if (checked) setTipoFilter([...tipoFilter, "Crédito"]);
+                        else setTipoFilter(tipoFilter.filter((t) => t !== "Crédito"));
+                      }}
+                    />
+                    <label
+                      htmlFor="tipo-credito"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                    >
+                      Crédito
+                    </label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="tipo-debito"
+                      checked={tipoFilter.includes("Débito")}
+                      onCheckedChange={(checked) => {
+                        if (checked) setTipoFilter([...tipoFilter, "Débito"]);
+                        else setTipoFilter(tipoFilter.filter((t) => t !== "Débito"));
+                      }}
+                    />
+                    <label
+                      htmlFor="tipo-debito"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                    >
+                      Débito
+                    </label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="tipo-pix"
+                      checked={tipoFilter.includes("Pix")}
+                      onCheckedChange={(checked) => {
+                        if (checked) setTipoFilter([...tipoFilter, "Pix"]);
+                        else setTipoFilter(tipoFilter.filter((t) => t !== "Pix"));
+                      }}
+                    />
+                    <label
+                      htmlFor="tipo-pix"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                    >
+                      PIX
+                    </label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="tipo-dinheiro"
+                      checked={tipoFilter.includes("Dinheiro")}
+                      onCheckedChange={(checked) => {
+                        if (checked) setTipoFilter([...tipoFilter, "Dinheiro"]);
+                        else setTipoFilter(tipoFilter.filter((t) => t !== "Dinheiro"));
+                      }}
+                    />
+                    <label
+                      htmlFor="tipo-dinheiro"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                    >
+                      Dinheiro
+                    </label>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="space-y-2">
