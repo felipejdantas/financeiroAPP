@@ -720,6 +720,11 @@ const Dashboard = () => {
   })();
 
   const despesasOrdenadas = [...despesasExibidas].sort((a, b) => {
+    if (activeSummaryFilter?.type === 'custo_fixo') {
+      const dateA = brToDate(a.Data).getTime();
+      const dateB = brToDate(b.Data).getTime();
+      return dateA - dateB;
+    }
     const dateA = new Date(a.created_at || 0).getTime();
     const dateB = new Date(b.created_at || 0).getTime();
     return dateB - dateA || (b.id || 0) - (a.id || 0);
