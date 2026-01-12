@@ -35,10 +35,20 @@ export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange,
     .filter((d) => ["Pix", "Débito", "Dinheiro"].includes(d.Tipo))
     .reduce((sum, d) => sum + d.valor, 0);
 
-  // Agrupar por responsável
+  // Agrupar por responsável (Geral)
   const responsaveis = [...new Set(despesas.map((d) => d.Responsavel).filter(Boolean))];
   const totaisPorResponsavel = responsaveis.map((resp) => {
     const total = despesas
+      .filter((d) => d.Responsavel === resp)
+      .reduce((sum, d) => sum + d.valor, 0);
+    return { nome: resp, total };
+  });
+
+  // Agrupar por responsável (Apenas Cartão de Crédito)
+  const despesasCredito = despesas.filter((d) => d.Tipo === "Crédito");
+  const responsaveisCredito = [...new Set(despesasCredito.map((d) => d.Responsavel).filter(Boolean))];
+  const totaisPorResponsavelCredito = responsaveisCredito.map((resp) => {
+    const total = despesasCredito
       .filter((d) => d.Responsavel === resp)
       .reduce((sum, d) => sum + d.valor, 0);
     return { nome: resp, total };
@@ -122,7 +132,7 @@ export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange,
       {/* Linha 2: Total Despesas (Full Width) */}
       <div className="grid gap-4 grid-cols-1">
         <Card
-          className={`${getCardStyle("total")}`}
+          className={`${getCardStyle("total")} border-l-4 border-l-red-500`}
           onClick={() => onFilterChange("total")}
         >
           <CardHeader className="flex flex-row items-center justify-center gap-2 space-y-0 p-4 pb-2">
@@ -140,57 +150,78 @@ export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange,
         </Card>
       </div>
 
-      {/* Linha 3: Cartão de Crédito e Despesas Fixas */}
+      {/* Linha 3: Cartão de Crédito e Responsáveis (Cartão) */}
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
         {/* Cartão de Crédito */}
         <Card
-          className={`${getCardStyle("credito")}`}
+          className={`${getCardStyle("credito")} h-full border-l-4 border-l-blue-500`}
           onClick={() => onFilterChange("credito")}
         >
-          <CardHeader className="flex flex-row items-center justify-center gap-2 space-y-0 p-4 pb-2">
-            <CardTitle className="text-xs md:text-sm font-medium text-card-foreground truncate">
+          <CardHeader className="flex flex-row items-center justify-center gap-2 space-y-0 p-6">
+            <CardTitle className="text-base md:text-lg font-medium text-card-foreground truncate">
               Cartão de Crédito
             </CardTitle>
-            <CreditCard className="h-4 w-4 text-blue-500" />
+            <CreditCard className="h-5 w-5 text-blue-500" />
           </CardHeader>
-          <CardContent className="p-4 pt-0 text-center">
-            <div className="text-lg md:text-2xl font-bold text-card-foreground truncate">{formatCurrency(totalCredito)}</div>
-            <p className="text-[10px] md:text-xs text-muted-foreground truncate">
+          <CardContent className="p-6 pt-0 text-center flex flex-col justify-center h-[calc(100%-80px)]">
+            <div className="text-2xl md:text-3xl font-bold text-card-foreground truncate">{formatCurrency(totalCredito)}</div>
+            <p className="text-xs md:text-sm text-muted-foreground truncate mt-2">
               Faturas
             </p>
           </CardContent>
         </Card>
 
-        {/* Despesas Fixas */}
-        {totalPendentes > 0 ? (
+        {/* Responsáveis (Apenas Cartão) - Stack Vertical / Grid compacta */}
+        <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 content-start">
+          {totaisPorResponsavelCredito.map((item) => (
+            <Card
+              key={`credito-${item.nome}`}
+              className={`${getCardStyle("responsavel", item.nome)} border-l-4 border-l-purple-500`}
+              onClick={() => onFilterChange("responsavel", item.nome)}
+            >
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1">
+                <CardTitle className="text-xs font-medium text-card-foreground truncate">
+                  {item.nome}
+                </CardTitle>
+                <CreditCard className="h-3 w-3 text-purple-500" />
+              </CardHeader>
+              <CardContent className="p-3 pt-1 text-right">
+                <div className="text-sm font-bold text-card-foreground truncate">{formatCurrency(item.total)}</div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      {/* Linha 4: Despesas Fixas (Full Width) */}
+      {totalPendentes > 0 ? (
+        <div className="grid gap-4 grid-cols-1">
           <Card
-            className={getCardStyle("custo_fixo")}
+            className={`${getCardStyle("custo_fixo")} border-l-4 border-l-orange-500`}
             onClick={() => onFilterChange("custo_fixo")}
           >
             <CardHeader className="flex flex-row items-center justify-center gap-2 space-y-0 p-4 pb-2">
-              <CardTitle className="text-xs md:text-sm font-medium text-card-foreground truncate">
+              <CardTitle className="text-sm font-medium text-card-foreground truncate">
                 Despesas Fixas
               </CardTitle>
               <Banknote className="h-4 w-4 text-orange-500" />
             </CardHeader>
             <CardContent className="p-4 pt-0 text-center">
-              <div className="text-lg md:text-2xl font-bold text-card-foreground truncate">{formatCurrency(totalPendentes)}</div>
-              <p className="text-[10px] md:text-xs text-muted-foreground truncate">
+              <div className="text-xl md:text-2xl font-bold text-card-foreground truncate">{formatCurrency(totalPendentes)}</div>
+              <p className="text-xs text-muted-foreground truncate">
                 Pendentes
               </p>
             </CardContent>
           </Card>
-        ) : (
-          <div className="hidden md:block"></div> /* Espaço vazio se não houver pendentes, manter grid? */
-        )}
-      </div>
+        </div>
+      ) : null}
 
-      {/* Linha 4: Responsáveis */}
-      <div className="grid gap-2 grid-cols-2 md:grid-cols-2 lg:grid-cols-4">
+      {/* Linha 5: Responsáveis (Geral) */}
+      <div className="flex flex-wrap gap-4">
         {totaisPorResponsavel.map((item) => (
           <Card
             key={item.nome}
-            className={getCardStyle("responsavel", item.nome)}
+            className={`${getCardStyle("responsavel", item.nome)} flex-1 min-w-[200px] border-l-4 border-l-indigo-500`}
             onClick={() => onFilterChange("responsavel", item.nome)}
           >
             <CardHeader className="flex flex-row items-center justify-center gap-2 space-y-0 p-4 pb-2">
@@ -200,7 +231,7 @@ export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange,
               <User className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent className="p-4 pt-0 text-center">
-              <div className="text-lg md:text-2xl font-bold text-card-foreground truncate">{formatCurrency(item.total)}</div>
+              <div className="text-base md:text-lg font-bold text-card-foreground truncate">{formatCurrency(item.total)}</div>
               <p className="text-[10px] md:text-xs text-muted-foreground truncate">
                 Responsável
               </p>
