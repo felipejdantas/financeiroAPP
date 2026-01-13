@@ -918,6 +918,7 @@ const Dashboard = () => {
           onDelete={handleDeleteClick}
           onDuplicate={handleDuplicate}
           categoryEmojis={categoryEmojis}
+          loading={loading}
         />
 
         {temMaisDespesas && (

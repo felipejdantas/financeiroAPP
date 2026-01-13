@@ -13,9 +13,9 @@ import {
 interface ExportButtonProps {
   despesas: Despesa[];
   filtrosAtivos: {
-    responsavel: string;
+    responsavel: string[];
     tipo: string[];
-    categoria: string;
+    categoria: string[];
   };
   simple?: boolean;
 }
@@ -40,16 +40,16 @@ export const ExportButton = ({ despesas, filtrosAtivos, simple = false }: Export
       // Informações dos filtros
       doc.setFontSize(10);
       let yPos = 30;
-      if (filtrosAtivos?.responsavel && filtrosAtivos.responsavel !== "todos") {
-        doc.text(`Responsável: ${filtrosAtivos.responsavel}`, 14, yPos);
+      if (filtrosAtivos?.responsavel && filtrosAtivos.responsavel.length > 0) {
+        doc.text(`Responsável: ${filtrosAtivos.responsavel.join(", ")}`, 14, yPos);
         yPos += 5;
       }
       if (filtrosAtivos?.tipo && filtrosAtivos.tipo.length > 0) {
         doc.text(`Tipo: ${filtrosAtivos.tipo.join(", ")}`, 14, yPos);
         yPos += 5;
       }
-      if (filtrosAtivos?.categoria && filtrosAtivos.categoria !== "todas") {
-        doc.text(`Categoria: ${filtrosAtivos.categoria}`, 14, yPos);
+      if (filtrosAtivos?.categoria && filtrosAtivos.categoria.length > 0) {
+        doc.text(`Categoria: ${filtrosAtivos.categoria.join(", ")}`, 14, yPos);
         yPos += 5;
       }
 

@@ -23,9 +23,10 @@ interface DespesasTableProps {
   onBulkDeleteClick?: (selectedIds: number[]) => void;
   categoryEmojis?: Record<string, string>;
   totalFiltered?: number;
+  loading?: boolean;
 }
 
-export const DespesasTable = ({ despesas, onEdit, onDelete, onDuplicate, onBulkEditClick, onBulkDeleteClick, categoryEmojis = {}, totalFiltered }: DespesasTableProps) => {
+export const DespesasTable = ({ despesas, onEdit, onDelete, onDuplicate, onBulkEditClick, onBulkDeleteClick, categoryEmojis = {}, totalFiltered, loading }: DespesasTableProps) => {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   // Reset selection when despesas change
@@ -73,8 +74,103 @@ export const DespesasTable = ({ despesas, onEdit, onDelete, onDuplicate, onBulkE
       currency: "BRL",
     }).format(value);
   };
-  // ... rest of component
-  // And update the Title
+  const formatDate = (dateString: string) => {
+    try {
+      // Data já vem formatada como "10/11/2025"
+      return dateString;
+    } catch {
+      return dateString;
+    }
+  };
+
+  const getCategoryEmoji = (categoria: string) => {
+    // First check if there's a custom emoji for this category
+    if (categoryEmojis[categoria]) {
+      return categoryEmojis[categoria];
+    }
+
+    // Fallback to hardcoded emojis
+    const emojis: { [key: string]: string } = {
+      "Alimentação": "🍔",
+      "Transporte": "🚗",
+      "Saúde": "💊",
+      "Educação": "📚",
+      "Lazer": "🎉",
+      "Moradia": "🏠",
+      "Contas": "💡",
+      "Vestuário": "👕",
+      "Outros": "📦",
+      "Salário": "💰",
+      "Investimento": "📈",
+      "Presente": "🎁",
+      "Viagem": "✈️",
+      "Pet": "🐾",
+      "Mercado": "🛒",
+      "Farmácia": "⚕️",
+      "Restaurante": "🍽️",
+      "Serviços": "🔧",
+      "Assinaturas": "📺",
+      "Beleza": "💅",
+      "Esporte": "⚽",
+      "Eletrônicos": "📱",
+      "Carro": "🚘",
+      "Moto": "🏍️",
+      "Uber": "🚕",
+      "Ônibus": "🚌",
+      "Metrô": "🚇",
+      "Trem": "🚆",
+      "Combustível": "⛽",
+      "Estacionamento": "🅿️",
+      "Pedágio": "🚧",
+      "Seguro": "🛡️",
+      "Imposto": "💸",
+      "Taxa": "📉",
+      "Juros": "📊",
+      "Multa": "🚫",
+      "Doação": "🤝",
+      "Empréstimo": "💳",
+      "Dívida": "📉",
+      "Poupança": "🐷",
+      "Reserva": "🏦",
+      "Emergência": "🚨",
+      "Manutenção": "🛠️",
+      "Reforma": "🔨",
+      "Decoração": "🖼️",
+      "Móveis": "🪑",
+      "Eletrodomésticos": "🔌",
+      "Limpeza": "🧹",
+      "Higiene": "🚿",
+      "Cosméticos": "💄",
+      "Roupas": "👗",
+      "Sapatos": "👠",
+      "Acessórios": "💍",
+      "Jóias": "💎",
+      "Livros": "📖",
+      "Cursos": "🎓",
+      "Escola": "🏫",
+      "Faculdade": "🏛️",
+      "Material Escolar": "✏️",
+      "Cinema": "🎬",
+      "Teatro": "🎭",
+      "Show": "🎤",
+      "Jogos": "🎮",
+      "Streaming": "📺",
+      "Internet": "🌐",
+      "Celular": "📱",
+      "Telefone": "☎️",
+      "TV": "📺",
+      "Água": "💧",
+      "Luz": "💡",
+      "Gás": "🔥",
+      "Condomínio": "🏢",
+      "Aluguel": "🏠",
+      "IPTU": "🏙️",
+      "IPVA": "🚗",
+      "Licenciamento": "📄",
+    };
+    return emojis[categoria] || "📝";
+  };
+
   return (
     <Card className="bg-card border-border shadow-sm">
       <CardHeader>
@@ -143,7 +239,21 @@ export const DespesasTable = ({ despesas, onEdit, onDelete, onDuplicate, onBulkE
               </TableRow>
             </TableHeader>
             <TableBody>
-              {despesas.length > 0 ? (
+              {loading ? (
+                Array.from({ length: 5 }).map((_, index) => (
+                  <TableRow key={`loading-${index}`} className="border-border">
+                    {onBulkEditClick && <TableCell><div className="h-4 w-4 bg-muted animate-pulse rounded" /></TableCell>}
+                    <TableCell><div className="h-4 w-20 bg-muted animate-pulse rounded" /></TableCell>
+                    <TableCell><div className="h-4 w-32 bg-muted animate-pulse rounded" /></TableCell>
+                    <TableCell className="hidden sm:table-cell"><div className="h-4 w-24 bg-muted animate-pulse rounded" /></TableCell>
+                    <TableCell className="hidden md:table-cell"><div className="h-4 w-16 bg-muted animate-pulse rounded" /></TableCell>
+                    <TableCell className="hidden lg:table-cell"><div className="h-4 w-20 bg-muted animate-pulse rounded" /></TableCell>
+                    <TableCell><div className="h-4 w-12 bg-muted animate-pulse rounded" /></TableCell>
+                    <TableCell className="text-right"><div className="h-4 w-20 bg-muted animate-pulse rounded ml-auto" /></TableCell>
+                    <TableCell className="text-right"><div className="h-8 w-24 bg-muted animate-pulse rounded ml-auto" /></TableCell>
+                  </TableRow>
+                ))
+              ) : despesas.length > 0 ? (
                 despesas.map((despesa, index) => (
                   <TableRow key={index} className="border-border hover:bg-muted/50">
                     {onBulkEditClick && despesa.id && (

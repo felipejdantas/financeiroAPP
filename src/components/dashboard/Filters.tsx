@@ -10,12 +10,12 @@ import { Filter, User, CreditCard, Tag, Calendar, X } from "lucide-react";
 import { format } from "date-fns";
 
 interface FiltersProps {
-  responsavelFilter: ResponsavelFilter;
-  setResponsavelFilter: (value: ResponsavelFilter) => void;
+  responsavelFilter: string[];
+  setResponsavelFilter: (value: string[]) => void;
   tipoFilter: string[];
   setTipoFilter: (value: string[]) => void;
-  categoriaFilter: string;
-  setCategoriaFilter: (value: string) => void;
+  categoriaFilter: string[];
+  setCategoriaFilter: (value: string[]) => void;
   parcelaFilter: string[];
   setParcelaFilter: (value: string[]) => void;
   dataInicio: string;
@@ -76,6 +76,22 @@ export const Filters = ({
       setParcelaFilter(parcelaFilter.filter(p => p !== value));
     } else {
       setParcelaFilter([...parcelaFilter, value]);
+    }
+  };
+
+  const handleResponsavelToggle = (value: string) => {
+    if (responsavelFilter.includes(value)) {
+      setResponsavelFilter(responsavelFilter.filter(r => r !== value));
+    } else {
+      setResponsavelFilter([...responsavelFilter, value]);
+    }
+  };
+
+  const handleCategoriaToggle = (value: string) => {
+    if (categoriaFilter.includes(value)) {
+      setCategoriaFilter(categoriaFilter.filter(c => c !== value));
+    } else {
+      setCategoriaFilter([...categoriaFilter, value]);
     }
   };
 
@@ -199,20 +215,37 @@ export const Filters = ({
               <User className="h-4 w-4" />
               Responsável
             </Label>
-            <Select
-              value={responsavelFilter}
-              onValueChange={(value) => setResponsavelFilter(value as ResponsavelFilter)}
-            >
-              <SelectTrigger id="responsavel" className="bg-secondary border-border">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-popover border-border">
-                <SelectItem value="todos">Todos</SelectItem>
-                {responsaveis.map((resp) => (
-                  <SelectItem key={resp} value={resp}>{resp}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start bg-secondary border-border text-card-foreground"
+                >
+                  {responsavelFilter.length === 0
+                    ? "Selecionar responsáveis"
+                    : `${responsavelFilter.length} selecionado(s)`}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 bg-popover border-border">
+                <div className="space-y-2">
+                  {responsaveis.map((resp) => (
+                    <div key={resp} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`resp-${resp}`}
+                        checked={responsavelFilter.includes(resp)}
+                        onCheckedChange={() => handleResponsavelToggle(resp)}
+                      />
+                      <label
+                        htmlFor={`resp-${resp}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                      >
+                        {resp}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="space-y-2">
@@ -307,19 +340,37 @@ export const Filters = ({
               <Tag className="h-4 w-4" />
               Categoria
             </Label>
-            <Select value={categoriaFilter} onValueChange={setCategoriaFilter}>
-              <SelectTrigger id="categoria" className="bg-secondary border-border">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-popover border-border">
-                <SelectItem value="todas">Todas</SelectItem>
-                {categorias.map((cat) => (
-                  <SelectItem key={cat} value={cat}>
-                    {cat}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start bg-secondary border-border text-card-foreground"
+                >
+                  {categoriaFilter.length === 0
+                    ? "Selecionar categorias"
+                    : `${categoriaFilter.length} selecionada(s)`}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 bg-popover border-border max-h-[300px] overflow-y-auto">
+                <div className="space-y-2">
+                  {categorias.map((cat) => (
+                    <div key={cat} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`cat-${cat}`}
+                        checked={categoriaFilter.includes(cat)}
+                        onCheckedChange={() => handleCategoriaToggle(cat)}
+                      />
+                      <label
+                        htmlFor={`cat-${cat}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                      >
+                        {cat}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="space-y-2">

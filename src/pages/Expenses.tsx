@@ -46,9 +46,9 @@ export default function Expenses() {
     const [loading, setLoading] = useState(true);
     const { toast } = useToast();
 
-    const [responsavelFilter, setResponsavelFilter] = useState<ResponsavelFilter>("todos");
+    const [responsavelFilter, setResponsavelFilter] = useState<string[]>([]);
     const [tipoFilter, setTipoFilter] = useState<string[]>([]);
-    const [categoriaFilter, setCategoriaFilter] = useState("todas");
+    const [categoriaFilter, setCategoriaFilter] = useState<string[]>([]);
     const [parcelaFilter, setParcelaFilter] = useState<string[]>([]);
     const [dataInicio, setDataInicio] = useState("");
     const [dataFim, setDataFim] = useState("");
@@ -207,7 +207,7 @@ export default function Expenses() {
             return false;
         }
 
-        if (responsavelFilter !== "todos" && despesa.Responsavel !== responsavelFilter) {
+        if (responsavelFilter.length > 0 && !responsavelFilter.includes(despesa.Responsavel)) {
             return false;
         }
 
@@ -215,7 +215,7 @@ export default function Expenses() {
             return false;
         }
 
-        if (categoriaFilter !== "todas" && despesa.Categoria !== categoriaFilter) {
+        if (categoriaFilter.length > 0 && !categoriaFilter.includes(despesa.Categoria)) {
             return false;
         }
 
@@ -442,9 +442,9 @@ export default function Expenses() {
     };
 
     const limparFiltros = () => {
-        setResponsavelFilter("todos");
+        setResponsavelFilter([]);
         setTipoFilter([]);
-        setCategoriaFilter("todas");
+        setCategoriaFilter([]);
         setParcelaFilter([]);
         setDataInicio("");
         setDataFim("");
@@ -685,6 +685,7 @@ export default function Expenses() {
                     onBulkDeleteClick={handleBulkDeleteClick}
                     categoryEmojis={categoryEmojis}
                     totalFiltered={despesasFiltradas.reduce((acc, curr) => acc + curr.valor, 0)}
+                    loading={loading}
                 />
 
                 {temMaisDespesas && (
