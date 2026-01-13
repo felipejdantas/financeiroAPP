@@ -684,6 +684,7 @@ export default function Expenses() {
                     onBulkEditClick={handleBulkEditClick}
                     onBulkDeleteClick={handleBulkDeleteClick}
                     categoryEmojis={categoryEmojis}
+                    totalFiltered={despesasFiltradas.reduce((acc, curr) => acc + curr.valor, 0)}
                 />
 
                 {temMaisDespesas && (

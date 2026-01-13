@@ -22,9 +22,10 @@ interface DespesasTableProps {
   onBulkEditClick?: (selectedIds: number[]) => void;
   onBulkDeleteClick?: (selectedIds: number[]) => void;
   categoryEmojis?: Record<string, string>;
+  totalFiltered?: number;
 }
 
-export const DespesasTable = ({ despesas, onEdit, onDelete, onDuplicate, onBulkEditClick, onBulkDeleteClick, categoryEmojis = {} }: DespesasTableProps) => {
+export const DespesasTable = ({ despesas, onEdit, onDelete, onDuplicate, onBulkEditClick, onBulkDeleteClick, categoryEmojis = {}, totalFiltered }: DespesasTableProps) => {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   // Reset selection when despesas change
@@ -72,104 +73,8 @@ export const DespesasTable = ({ despesas, onEdit, onDelete, onDuplicate, onBulkE
       currency: "BRL",
     }).format(value);
   };
-
-  const formatDate = (dateString: string) => {
-    try {
-      // Data já vem formatada como "10/11/2025"
-      return dateString;
-    } catch {
-      return dateString;
-    }
-  };
-
-  const getCategoryEmoji = (categoria: string) => {
-    // First check if there's a custom emoji for this category
-    if (categoryEmojis[categoria]) {
-      return categoryEmojis[categoria];
-    }
-
-    // Fallback to hardcoded emojis
-    const emojis: { [key: string]: string } = {
-      "Alimentação": "🍔",
-      "Transporte": "🚗",
-      "Saúde": "💊",
-      "Educação": "📚",
-      "Lazer": "🎉",
-      "Moradia": "🏠",
-      "Contas": "💡",
-      "Vestuário": "👕",
-      "Outros": "📦",
-      "Salário": "💰",
-      "Investimento": "📈",
-      "Presente": "🎁",
-      "Viagem": "✈️",
-      "Pet": "🐾",
-      "Mercado": "🛒",
-      "Farmácia": "⚕️",
-      "Restaurante": "🍽️",
-      "Serviços": "🔧",
-      "Assinaturas": "📺",
-      "Beleza": "💅",
-      "Esporte": "⚽",
-      "Eletrônicos": "📱",
-      "Carro": "🚘",
-      "Moto": "🏍️",
-      "Uber": "🚕",
-      "Ônibus": "🚌",
-      "Metrô": "🚇",
-      "Trem": "🚆",
-      "Combustível": "⛽",
-      "Estacionamento": "🅿️",
-      "Pedágio": "🚧",
-      "Seguro": "🛡️",
-      "Imposto": "💸",
-      "Taxa": "📉",
-      "Juros": "📊",
-      "Multa": "🚫",
-      "Doação": "🤝",
-      "Empréstimo": "💳",
-      "Dívida": "📉",
-      "Poupança": "🐷",
-      "Reserva": "🏦",
-      "Emergência": "🚨",
-      "Manutenção": "🛠️",
-      "Reforma": "🔨",
-      "Decoração": "🖼️",
-      "Móveis": "🪑",
-      "Eletrodomésticos": "🔌",
-      "Limpeza": "🧹",
-      "Higiene": "🚿",
-      "Cosméticos": "💄",
-      "Roupas": "👗",
-      "Sapatos": "👠",
-      "Acessórios": "💍",
-      "Jóias": "💎",
-      "Livros": "📖",
-      "Cursos": "🎓",
-      "Escola": "🏫",
-      "Faculdade": "🏛️",
-      "Material Escolar": "✏️",
-      "Cinema": "🎬",
-      "Teatro": "🎭",
-      "Show": "🎤",
-      "Jogos": "🎮",
-      "Streaming": "📺",
-      "Internet": "🌐",
-      "Celular": "📱",
-      "Telefone": "☎️",
-      "TV": "📺",
-      "Água": "💧",
-      "Luz": "💡",
-      "Gás": "🔥",
-      "Condomínio": "🏢",
-      "Aluguel": "🏠",
-      "IPTU": "🏙️",
-      "IPVA": "🚗",
-      "Licenciamento": "📄",
-    };
-    return emojis[categoria] || "📝";
-  };
-
+  // ... rest of component
+  // And update the Title
   return (
     <Card className="bg-card border-border shadow-sm">
       <CardHeader>
@@ -178,6 +83,11 @@ export const DespesasTable = ({ despesas, onEdit, onDelete, onDuplicate, onBulkE
             <Receipt className="h-5 w-5 text-primary" />
             <CardTitle className="text-sm md:text-base lg:text-lg text-card-foreground">
               Todas as Despesas ({despesas.length} {despesas.length === 1 ? 'despesa' : 'despesas'})
+              {totalFiltered !== undefined && (
+                <span className="ml-2 text-primary font-bold">
+                  - Total: {formatCurrency(totalFiltered)}
+                </span>
+              )}
             </CardTitle>
           </div>
           {selectedIds.size > 0 && (
