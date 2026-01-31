@@ -12,6 +12,7 @@ import { format, isSameMonth, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 
 interface FixedCost {
+    responsavel?: string;
     id: number;
     title: string;
     description?: string;
@@ -43,13 +44,15 @@ export const FixedCosts = () => {
         description: "",
         auto_generate: true,
         payment_method: "Débito",
-        total_cycles: ""
+        total_cycles: "",
+        responsavel: "Felipe"
     });
 
     const [payData, setPayData] = useState({
         date: format(new Date(), "yyyy-MM-dd"),
         method: "Débito" as "Crédito" | "Débito" | "Pix" | "Dinheiro",
-        amount: ""
+        amount: "",
+        responsavel: "Felipe"
     });
 
     useEffect(() => {
@@ -106,7 +109,8 @@ export const FixedCosts = () => {
                 description: formData.description,
                 auto_generate: false, // BYPASS DB TRIGGER enforced
                 payment_method: formData.payment_method,
-                total_cycles: formData.total_cycles ? parseInt(formData.total_cycles) : null
+                total_cycles: formData.total_cycles ? parseInt(formData.total_cycles) : null,
+                responsavel: formData.responsavel
             };
 
             let savedCostId: number;
@@ -226,7 +230,7 @@ export const FixedCosts = () => {
 
                 toInsert.push({
                     user_id: userId,
-                    "Responsavel": 'Sistema',
+                    "Responsavel": cost.responsavel || 'Sistema',
                     "Tipo": cost.payment_method,
                     "Categoria": cost.category,
                     "Parcelas": 'A vista',
@@ -304,7 +308,8 @@ export const FixedCosts = () => {
         setPayData({
             date: format(new Date(), "yyyy-MM-dd"),
             method: "Pix",
-            amount: cost.amount.toString()
+            amount: cost.amount.toString(),
+            responsavel: cost.responsavel || "Felipe"
         });
         setIsPayOpen(true);
     };
@@ -360,7 +365,7 @@ export const FixedCosts = () => {
                 .from(tableName)
                 .insert([{
                     user_id: user.id,
-                    Responsavel: "Sistema",
+                    Responsavel: payData.responsavel || "Sistema",
                     Tipo: payData.method,
                     Categoria: selectedCost.category,
                     Parcelas: "A vista",
@@ -418,7 +423,8 @@ export const FixedCosts = () => {
             description: "",
             auto_generate: true,
             payment_method: "Débito",
-            total_cycles: ""
+            total_cycles: "",
+            responsavel: "Felipe"
         });
         setSelectedCost(null);
     };
@@ -509,7 +515,8 @@ export const FixedCosts = () => {
                                                     description: cost.description || "",
                                                     auto_generate: cost.auto_generate ?? true,
                                                     payment_method: cost.payment_method || "Débito",
-                                                    total_cycles: cost.total_cycles ? cost.total_cycles.toString() : ""
+                                                    total_cycles: cost.total_cycles ? cost.total_cycles.toString() : "",
+                                                    responsavel: cost.responsavel || "Felipe"
                                                 });
                                                 setIsAddOpen(true);
                                             }}>
@@ -521,16 +528,18 @@ export const FixedCosts = () => {
                                         </div>
                                     </div>
 
-                                    {status.status !== "paid" && (
-                                        <Button className="w-full mt-4" onClick={() => openPayModal(cost)}>
-                                            <Check className="mr-2 h-4 w-4" /> Registrar Pagamento
-                                        </Button>
-                                    )}
-                                    {status.status === "paid" && (
-                                        <Button className="w-full mt-4" variant="outline" disabled>
-                                            <Check className="mr-2 h-4 w-4" /> Pago em {cost.last_paid_date && format(parseISO(cost.last_paid_date), 'dd/MM')}
-                                        </Button>
-                                    )}
+                                    {/* Botão de pagamento sempre habilitado para permitir antecipação */}
+                                    <Button 
+                                        className={cn("w-full mt-4", status.status === "paid" && "bg-green-600 hover:bg-green-700")}
+                                        variant={status.status === "paid" ? "outline" : "default"}
+                                        onClick={() => openPayModal(cost)}
+                                    >
+                                        <Check className="mr-2 h-4 w-4" /> 
+                                        {status.status === "paid" 
+                                            ? `Pago (${cost.last_paid_date && format(parseISO(cost.last_paid_date), 'dd/MM')}) - Antecipar` 
+                                            : "Registrar Pagamento"
+                                        }
+                                    </Button>
                                 </CardContent>
                             </Card>
                         );
@@ -591,11 +600,24 @@ export const FixedCosts = () => {
                                         <SelectValue placeholder="Selecione" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {categorias.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
                                         <SelectItem value="Débito">Débito</SelectItem>
                                         <SelectItem value="Pix">Pix</SelectItem>
                                         <SelectItem value="Dinheiro">Dinheiro</SelectItem>
                                         <SelectItem value="Crédito">Crédito</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Responsável Padrão</Label>
+                                <Select value={formData.responsavel} onValueChange={(val) => setFormData({ ...formData, responsavel: val })}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecione" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Felipe">Felipe</SelectItem>
+                                        <SelectItem value="Dantas">Dantas</SelectItem>
+                                        <SelectItem value="Danta Info">Danta Info</SelectItem>
+                                        <SelectItem value="Sistema">Sistema</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -651,6 +673,20 @@ export const FixedCosts = () => {
                                         <SelectItem value="Pix">Pix</SelectItem>
                                         <SelectItem value="Dinheiro">Dinheiro</SelectItem>
                                         <SelectItem value="Crédito">Crédito</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Responsável</Label>
+                                <Select value={payData.responsavel} onValueChange={(val: any) => setPayData({ ...payData, responsavel: val })}>
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Felipe">Felipe</SelectItem>
+                                        <SelectItem value="Dantas">Dantas</SelectItem>
+                                        <SelectItem value="Danta Info">Danta Info</SelectItem>
+                                        <SelectItem value="Sistema">Sistema</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
