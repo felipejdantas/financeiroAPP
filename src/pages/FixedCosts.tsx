@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { format, isSameMonth, parseISO } from "date-fns";
+import { format, isSameMonth, parseISO, parse } from "date-fns";
 import { cn } from "@/lib/utils";
 
 interface FixedCost {
@@ -20,6 +20,7 @@ interface FixedCost {
     category: string;
     due_day: number;
     last_paid_date?: string;
+    last_paid_competence?: string;
     auto_generate?: boolean;
     payment_method?: string;
     total_cycles?: number;
@@ -32,8 +33,16 @@ export const FixedCosts = () => {
     const [isPayOpen, setIsPayOpen] = useState(false);
     const [selectedCost, setSelectedCost] = useState<FixedCost | null>(null);
     const [categorias, setCategorias] = useState<string[]>([]);
+    const [responsaveis, setResponsaveis] = useState<string[]>([]);
     const [isGenerating, setIsGenerating] = useState(false);
     const { toast } = useToast();
+
+    // UI States for "New Responsible" input
+    const [showNewResponsavelInputFormData, setShowNewResponsavelInputFormData] = useState(false);
+    const [newResponsavelFormData, setNewResponsavelFormData] = useState("");
+
+    const [showNewResponsavelInputPayData, setShowNewResponsavelInputPayData] = useState(false);
+    const [newResponsavelPayData, setNewResponsavelPayData] = useState("");
 
     // Form States
     const [formData, setFormData] = useState({
@@ -52,13 +61,9 @@ export const FixedCosts = () => {
         date: format(new Date(), "yyyy-MM-dd"),
         method: "Débito" as "Crédito" | "Débito" | "Pix" | "Dinheiro",
         amount: "",
-        responsavel: "Felipe"
+        responsavel: "Felipe",
+        referenceMonth: format(new Date(), "yyyy-MM") // Formato YYYY-MM
     });
-
-    useEffect(() => {
-        fetchCosts();
-        fetchCategorias();
-    }, []);
 
     const fetchCosts = async () => {
         try {
@@ -94,6 +99,38 @@ export const FixedCosts = () => {
             console.error("Error fetching categories:", error);
         }
     };
+
+    const fetchResponsaveis = async () => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            // Fetch distinct responsibles from both tables (last 500 records to gather recent names)
+            const { data: cartao } = await supabase.from("Financeiro Cartão").select("Responsavel").order("created_at", { ascending: false }).limit(500);
+            const { data: debito } = await supabase.from("Financeiro Debito").select("Responsavel").order("created_at", { ascending: false }).limit(500);
+
+            const names = new Set<string>();
+
+            // Add defaults
+            names.add("Felipe");
+            names.add("Dantas");
+            names.add("Danta Info");
+            names.add("Sistema");
+
+            if (cartao) cartao.forEach((d: any) => { if (d.Responsavel) names.add(d.Responsavel); });
+            if (debito) debito.forEach((d: any) => { if (d.Responsavel) names.add(d.Responsavel); });
+
+            setResponsaveis(Array.from(names).sort());
+        } catch (error) {
+            console.error("Error fetching responsibles:", error);
+        }
+    };
+
+    useEffect(() => {
+        fetchCosts();
+        fetchCategorias();
+        fetchResponsaveis();
+    }, []);
 
     const handleSave = async () => {
         try {
@@ -140,7 +177,7 @@ export const FixedCosts = () => {
                     .single();
 
                 if (error) throw error;
-                savedCostId = data.id;
+                savedCostId = (data as any).id;
                 savedCostData.id = savedCostId;
                 toast({ title: "Custo fixo criado!" });
             }
@@ -305,11 +342,23 @@ export const FixedCosts = () => {
 
     const openPayModal = (cost: FixedCost) => {
         setSelectedCost(cost);
+        // Default reference month:
+        // If paid this month (by competence), suggest next month.
+        // Otherwise, current month.
+        let defaultRef = format(new Date(), "yyyy-MM");
+
+        if (cost.last_paid_competence) {
+            const lastComp = parseISO(cost.last_paid_competence);
+            const nextComp = new Date(lastComp.getFullYear(), lastComp.getMonth() + 1, 1);
+            defaultRef = format(nextComp, "yyyy-MM");
+        }
+
         setPayData({
             date: format(new Date(), "yyyy-MM-dd"),
             method: "Pix",
             amount: cost.amount.toString(),
-            responsavel: cost.responsavel || "Felipe"
+            responsavel: cost.responsavel || "Felipe",
+            referenceMonth: defaultRef
         });
         setIsPayOpen(true);
     };
@@ -323,94 +372,105 @@ export const FixedCosts = () => {
             // 1. Insert into expenses (PAGO)
             const tableName = payData.method === "Crédito" ? "Financeiro Cartão" : "Financeiro Debito";
 
-            // Se tiver limite, precisamos saber qual parcela é essa.
-            // Poderíamos buscar o count novamente, mas é complexo em tempo real.
-            // Para simplificar, vamos salvar a descrição padrão, mas se já tiver sido gerada como pendente,
-            // ela já terá a descrição certa (Ex: 5/24).
-            // MAS o handlePay cria uma NOVA se não achar pendente? Não, ele remove pendente.
-            // SE ele está criando uma NOVA (pagamento adiantado ou manual), a descrição vai padrão.
-            // Idealmente deveríamos 'promover' a pendente a paga, em vez de deletar e criar.
-            // Mas o sistema atual: Insert Nova -> Delete Pendente.
-
-            // Vamos tentar pegar a descrição da pendente que estamos deletando?
-            // "Lógica de Limpeza Frontend" abaixo busca por DATA e DELETE.
-            // Se acharmos essa pendente ANTES, podemos usar a descrição dela.
-
             const payDate = parseISO(payData.date);
-            const monthStr = format(payDate, 'MM/yyyy');
 
-            // Busca Pendente para pegar a descrição correta (Ex: Parcela 5/24)
-            let existingDescription = `${selectedCost.title} (Custo Fixo)`;
+            // Usar MÊS DE REFERÊNCIA para buscar pendências e limpar (MM/yyyy)
+            const monthStr = format(parse(payData.referenceMonth, "yyyy-MM", new Date()), "MM/yyyy");
 
-            const { data: pendentesCartao } = await supabase
-                .from("Financeiro Cartão")
-                .select("Descrição")
-                .eq('fixed_cost_id', selectedCost.id)
-                .eq('status', 'pendente')
-                .ilike('Data', `%/${monthStr}`)
-                .limit(1);
+            // 1. Tenta encontrar o item pendente correspondente (por ID ou por Nome+Mês)
+            let pendingItemToDelete = null;
 
-            const { data: pendentesDebito } = await supabase
-                .from("Financeiro Debito")
-                .select("Descrição")
-                .eq('fixed_cost_id', selectedCost.id)
-                .eq('status', 'pendente')
-                .ilike('Data', `%/${monthStr}`)
-                .limit(1);
+            // Tentativa 1: Pelo ID do Custo Fixo (mais preciso)
+            const { data: byId } = await supabase
+                .from(tableName as any)
+                .select("id, Descrição")
+                .eq("fixed_cost_id", selectedCost.id)
+                .eq("status", "pendente")
+                .ilike("Data", `%/${monthStr}`)
+                .maybeSingle();
 
-            if (pendentesCartao && pendentesCartao.length > 0) existingDescription = pendentesCartao[0].Descrição;
-            else if (pendentesDebito && pendentesDebito.length > 0) existingDescription = pendentesDebito[0].Descrição;
+            if (byId) {
+                pendingItemToDelete = byId;
+            } else {
+                // Tentativa 2: Pelo Nome e Mês (fallback para itens antigos ou gerados sem ID)
+                // Usamos o título do custo fixo para tentar casar com a descrição
+                // A descrição geralmente é "Titulo (x/12)" ou só "Titulo"
+                const { data: byName } = await supabase
+                    .from(tableName as any)
+                    .select("id, Descrição")
+                    .eq("status", "pendente")
+                    .ilike("Data", `%/${monthStr}`)
+                    .ilike("Descrição", `${selectedCost.title}%`) // Começa com o título
+                    .is("fixed_cost_id", null) // Só pega se não tiver ID (para não pegar o de outro custo)
+                    .maybeSingle();
 
+                if (byName) {
+                    pendingItemToDelete = byName;
+                }
+            }
+
+            const description = pendingItemToDelete
+                ? (pendingItemToDelete as any).Descrição // Mantém descrição original (ex: com contagem de parcelas)
+                : `${selectedCost.title} (${payData.referenceMonth})`; // Valor default
+
+            const newExpense = {
+                user_id: user.id,
+                Responsavel: payData.responsavel || "Felipe",
+                Tipo: payData.method,
+                Categoria: selectedCost.category,
+                Parcelas: selectedCost.total_cycles ? `${1}/${selectedCost.total_cycles}` : "1/1",
+                Descrição: selectedCost.title, // Use title here, simpler
+                Data: format(parseISO(payData.date), "dd/MM/yyyy"),
+                valor: parseFloat(payData.amount),
+                created_at: new Date().toISOString(),
+                fixed_cost_id: selectedCost.id
+            };
+
+            // Inserir o novo pagamento
             const { error: insertError } = await supabase
-                .from(tableName)
-                .insert([{
-                    user_id: user.id,
-                    Responsavel: payData.responsavel || "Sistema",
-                    Tipo: payData.method,
-                    Categoria: selectedCost.category,
-                    Parcelas: "A vista",
-                    Descrição: existingDescription, // Usa descrição com numeração se existir
-                    Data: format(payDate, "dd/MM/yyyy"),
-                    valor: parseFloat(payData.amount),
-                    fixed_cost_id: selectedCost.id, // VINCULO IMPORTANTE
-                    created_at: new Date().toISOString()
-                }]);
+                .from(tableName as any)
+                .insert([newExpense]);
 
             if (insertError) throw insertError;
 
-            // 2. Procurar e Remover a pendência deste mês (Lógica de Limpeza Frontend)
-            // Remove do Cartão (se houver pendencia lá)
-            await supabase.from("Financeiro Cartão")
-                .delete()
-                .eq('fixed_cost_id', selectedCost.id)
-                .eq('status', 'pendente')
-                .ilike('Data', `%/${monthStr}`);
+            // 2. Se encontrou um item pendente, deleta ele
+            if (pendingItemToDelete) {
+                await supabase
+                    .from(tableName as any)
+                    .delete()
+                    .eq("id", pendingItemToDelete.id);
+            }
 
-            // Remove do Débito
-            await supabase.from("Financeiro Debito")
-                .delete()
-                .eq('fixed_cost_id', selectedCost.id)
-                .eq('status', 'pendente')
-                .ilike('Data', `%/${monthStr}`);
+            // 3. Atualiza o custo fixo com a última competência paga
+            // Parsear a data de referência para salvar corretamente (dia 01 do mês)
+            const referenceDate = parse(payData.referenceMonth, "yyyy-MM", new Date());
+            const competenceDate = format(referenceDate, "yyyy-MM-01");
 
-            // 3. Update last_paid_date in Fixed Cost def
             const { error: updateError } = await supabase
                 .from("fixed_costs" as any)
-                .update({ last_paid_date: payData.date })
+                .update({
+                    last_paid_at: new Date().toISOString(),
+                    last_paid_amount: parseFloat(payData.amount),
+                    last_paid_competence: competenceDate
+                })
                 .eq("id", selectedCost.id);
 
             if (updateError) throw updateError;
 
-            toast({ title: "Pagamento registrado!", description: "Próximos meses foram verificados." });
-
-            // 4. GARANTIR FUTURO: Chama a geração para repor qualquer buraco e extender 12 meses
-            await handleAutoGenerateInFrontend(user.id, selectedCost);
+            toast({
+                title: "Pagamento registrado!",
+                description: `Pagamento de ${selectedCost.title} referente a ${monthStr} realizado com sucesso.`,
+            });
 
             setIsPayOpen(false);
             fetchCosts();
         } catch (error: any) {
-            console.error(error);
-            toast({ title: "Erro ao registrar pagamento", description: error.message, variant: "destructive" });
+            console.error("Error registering payment:", error);
+            toast({
+                title: "Erro ao registrar pagamento",
+                description: error.message,
+                variant: "destructive",
+            });
         }
     };
 
@@ -427,6 +487,8 @@ export const FixedCosts = () => {
             responsavel: "Felipe"
         });
         setSelectedCost(null);
+        setShowNewResponsavelInputFormData(false);
+        setNewResponsavelFormData("");
     };
 
     const getStatus = (cost: FixedCost) => {
@@ -434,8 +496,14 @@ export const FixedCosts = () => {
         const currentDay = today.getDate();
         const dueDay = cost.due_day;
 
-        // Check if paid in current month
-        const isPaidThisMonth = cost.last_paid_date && isSameMonth(parseISO(cost.last_paid_date), today);
+        // Check if paid in current month (COMPETENCE PREFERRED)
+        let isPaidThisMonth = false;
+
+        if (cost.last_paid_competence) {
+            isPaidThisMonth = isSameMonth(parseISO(cost.last_paid_competence), today);
+        } else if (cost.last_paid_date) {
+            isPaidThisMonth = isSameMonth(parseISO(cost.last_paid_date), today);
+        }
 
         if (isPaidThisMonth) return { status: "paid", label: "Pago", color: "text-green-500", bg: "bg-green-500/10" };
 
@@ -444,6 +512,21 @@ export const FixedCosts = () => {
         if (dueDay - currentDay <= 3) return { status: "upcoming", label: "Vence em breve", color: "text-orange-500", bg: "bg-orange-500/10" };
 
         return { status: "pending", label: "Pendente", color: "text-muted-foreground", bg: "bg-secondary" };
+    };
+
+    // Helper para gerar meses para o seletor
+    const generateReferenceMonths = () => {
+        const today = new Date();
+        const months = [];
+        // Gera 12 meses para trás e 12 para frente
+        for (let i = -12; i <= 12; i++) {
+            const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
+            months.push({
+                value: format(d, "yyyy-MM"),
+                label: format(d, "MMMM/yyyy", {}) // Poderia usar locale pt-BR se importado
+            });
+        }
+        return months;
     };
 
     return (
@@ -518,6 +601,7 @@ export const FixedCosts = () => {
                                                     total_cycles: cost.total_cycles ? cost.total_cycles.toString() : "",
                                                     responsavel: cost.responsavel || "Felipe"
                                                 });
+                                                setShowNewResponsavelInputFormData(false); // Reset UI state
                                                 setIsAddOpen(true);
                                             }}>
                                                 <Edit className="h-4 w-4" />
@@ -529,14 +613,14 @@ export const FixedCosts = () => {
                                     </div>
 
                                     {/* Botão de pagamento sempre habilitado para permitir antecipação */}
-                                    <Button 
+                                    <Button
                                         className={cn("w-full mt-4", status.status === "paid" && "bg-green-600 hover:bg-green-700")}
                                         variant={status.status === "paid" ? "outline" : "default"}
                                         onClick={() => openPayModal(cost)}
                                     >
-                                        <Check className="mr-2 h-4 w-4" /> 
-                                        {status.status === "paid" 
-                                            ? `Pago (${cost.last_paid_date && format(parseISO(cost.last_paid_date), 'dd/MM')}) - Antecipar` 
+                                        <Check className="mr-2 h-4 w-4" />
+                                        {status.status === "paid"
+                                            ? `Pago (${cost.last_paid_competence ? format(parseISO(cost.last_paid_competence), 'MM/yy') : (cost.last_paid_date && format(parseISO(cost.last_paid_date), 'dd/MM'))}) - Antecipar`
                                             : "Registrar Pagamento"
                                         }
                                     </Button>
@@ -609,17 +693,39 @@ export const FixedCosts = () => {
                             </div>
                             <div className="grid gap-2">
                                 <Label>Responsável Padrão</Label>
-                                <Select value={formData.responsavel} onValueChange={(val) => setFormData({ ...formData, responsavel: val })}>
+                                <Select
+                                    value={showNewResponsavelInputFormData ? "__novo__" : formData.responsavel}
+                                    onValueChange={(val) => {
+                                        if (val === "__novo__") {
+                                            setShowNewResponsavelInputFormData(true);
+                                            setFormData({ ...formData, responsavel: "" });
+                                        } else {
+                                            setShowNewResponsavelInputFormData(false);
+                                            setFormData({ ...formData, responsavel: val });
+                                        }
+                                    }}
+                                >
                                     <SelectTrigger>
                                         <SelectValue placeholder="Selecione" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="Felipe">Felipe</SelectItem>
-                                        <SelectItem value="Dantas">Dantas</SelectItem>
-                                        <SelectItem value="Danta Info">Danta Info</SelectItem>
-                                        <SelectItem value="Sistema">Sistema</SelectItem>
+                                        {responsaveis.map(r => (
+                                            <SelectItem key={r} value={r}>{r}</SelectItem>
+                                        ))}
+                                        <SelectItem value="__novo__">+ Novo Responsável</SelectItem>
                                     </SelectContent>
                                 </Select>
+                                {showNewResponsavelInputFormData && (
+                                    <Input
+                                        placeholder="Digite o nome..."
+                                        className="mt-2"
+                                        value={newResponsavelFormData}
+                                        onChange={(e) => {
+                                            setNewResponsavelFormData(e.target.value);
+                                            setFormData({ ...formData, responsavel: e.target.value });
+                                        }}
+                                    />
+                                )}
                             </div>
                             <div className="flex items-center justify-between">
                                 <div className="space-y-0.5">
@@ -662,6 +768,22 @@ export const FixedCosts = () => {
                                 <Label>Data do Pagamento</Label>
                                 <Input type="date" value={payData.date} onChange={(e) => setPayData({ ...payData, date: e.target.value })} />
                             </div>
+
+                            <div className="grid gap-2">
+                                <Label>Mês de Referência (Competência)</Label>
+                                <Select value={payData.referenceMonth} onValueChange={(val) => setPayData({ ...payData, referenceMonth: val })}>
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent className="max-h-[200px]">
+                                        {generateReferenceMonths().map(m => (
+                                            <SelectItem key={m.value} value={m.value}>{m.value} ({m.label})</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-xs text-muted-foreground">O mês que será marcado como pago.</p>
+                            </div>
+
                             <div className="grid gap-2">
                                 <Label>Forma de Pagamento</Label>
                                 <Select value={payData.method} onValueChange={(val: any) => setPayData({ ...payData, method: val })}>
@@ -678,17 +800,39 @@ export const FixedCosts = () => {
                             </div>
                             <div className="grid gap-2">
                                 <Label>Responsável</Label>
-                                <Select value={payData.responsavel} onValueChange={(val: any) => setPayData({ ...payData, responsavel: val })}>
+                                <Select
+                                    value={showNewResponsavelInputPayData ? "__novo__" : payData.responsavel}
+                                    onValueChange={(val: any) => {
+                                        if (val === "__novo__") {
+                                            setShowNewResponsavelInputPayData(true);
+                                            setPayData({ ...payData, responsavel: "" });
+                                        } else {
+                                            setShowNewResponsavelInputPayData(false);
+                                            setPayData({ ...payData, responsavel: val });
+                                        }
+                                    }}
+                                >
                                     <SelectTrigger>
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="Felipe">Felipe</SelectItem>
-                                        <SelectItem value="Dantas">Dantas</SelectItem>
-                                        <SelectItem value="Danta Info">Danta Info</SelectItem>
-                                        <SelectItem value="Sistema">Sistema</SelectItem>
+                                        {responsaveis.map(r => (
+                                            <SelectItem key={r} value={r}>{r}</SelectItem>
+                                        ))}
+                                        <SelectItem value="__novo__">+ Novo Responsável</SelectItem>
                                     </SelectContent>
                                 </Select>
+                                {showNewResponsavelInputPayData && (
+                                    <Input
+                                        placeholder="Digite o nome..."
+                                        className="mt-2"
+                                        value={newResponsavelPayData}
+                                        onChange={(e) => {
+                                            setNewResponsavelPayData(e.target.value);
+                                            setPayData({ ...payData, responsavel: e.target.value });
+                                        }}
+                                    />
+                                )}
                             </div>
                         </div>
                         <DialogFooter>
