@@ -185,7 +185,19 @@ export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias,
                   <FormItem>
                     <FormLabel>Data</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="DD/MM/YYYY" />
+                      <Input
+                        type="date"
+                        value={field.value ? field.value.split('/').reverse().join('-') : ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val) {
+                            const [year, month, day] = val.split('-');
+                            field.onChange(`${day}/${month}/${year}`);
+                          } else {
+                            field.onChange('');
+                          }
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
