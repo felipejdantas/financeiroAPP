@@ -176,8 +176,8 @@ export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange,
           {totaisPorResponsavelCredito.map((item) => (
             <Card
               key={`credito-${item.nome}`}
-              className={`${getCardStyle("responsavel", item.nome)} border-l-4 border-l-purple-500`}
-              onClick={() => onFilterChange("responsavel", item.nome)}
+              className={`${getCardStyle("responsavel_credito", item.nome)} border-l-4 border-l-purple-500`}
+              onClick={() => onFilterChange("responsavel_credito", item.nome)}
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-1">
                 <CardTitle className="text-xs font-medium text-card-foreground truncate">

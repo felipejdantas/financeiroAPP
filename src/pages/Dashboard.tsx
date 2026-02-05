@@ -709,6 +709,8 @@ const Dashboard = () => {
       switch (activeSummaryFilter.type) {
         case "credito":
           return despesa.Tipo === "Crédito";
+        case "responsavel_credito":
+          return despesa.Responsavel === activeSummaryFilter.value && despesa.Tipo === "Crédito";
         case "outros":
           return ["Pix", "Débito", "Dinheiro"].includes(despesa.Tipo);
         case "responsavel":
