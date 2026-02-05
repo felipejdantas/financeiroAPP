@@ -505,13 +505,37 @@ export const FixedCosts = () => {
             isPaidThisMonth = isSameMonth(parseISO(cost.last_paid_date), today);
         }
 
-        if (isPaidThisMonth) return { status: "paid", label: "Pago", color: "text-green-500", bg: "bg-green-500/10" };
+        if (isPaidThisMonth) return {
+            status: "paid",
+            label: "Pago",
+            badgeClass: "bg-green-500/10 text-green-500",
+            borderClass: "border-l-4 border-l-green-500",
+            cardClass: ""
+        };
 
-        if (currentDay > dueDay) return { status: "overdue", label: "Atrasado", color: "text-red-500", bg: "bg-red-500/10" };
+        if (currentDay > dueDay) return {
+            status: "overdue",
+            label: "Atrasado",
+            badgeClass: "bg-red-600 text-white shadow-sm", // Solid red badge
+            borderClass: "border-2 border-red-600", // Full border
+            cardClass: "shadow-md shadow-red-100 dark:shadow-red-900/20 bg-red-50/30 dark:bg-red-900/10" // Red tint and shadow
+        };
 
-        if (dueDay - currentDay <= 3) return { status: "upcoming", label: "Vence em breve", color: "text-orange-500", bg: "bg-orange-500/10" };
+        if (dueDay - currentDay <= 3 && dueDay - currentDay >= 0) return {
+            status: "upcoming",
+            label: "Vence em breve",
+            badgeClass: "bg-orange-500/10 text-orange-500",
+            borderClass: "border-l-4 border-l-orange-500",
+            cardClass: ""
+        };
 
-        return { status: "pending", label: "Pendente", color: "text-muted-foreground", bg: "bg-secondary" };
+        return {
+            status: "pending",
+            label: "Pendente",
+            badgeClass: "bg-secondary text-muted-foreground",
+            borderClass: "border-l-4 border-l-primary/50",
+            cardClass: ""
+        };
     };
 
     // Helper para gerar meses para o seletor
@@ -556,8 +580,12 @@ export const FixedCosts = () => {
                     {costs.map((cost) => {
                         const status = getStatus(cost);
                         return (
-                            <Card key={cost.id} className="hover:shadow-lg transition-shadow border-l-4 border-l-primary/50 relative overflow-hidden group">
-                                <div className={cn("absolute top-0 right-0 px-3 py-1 text-xs font-bold rounded-bl-lg", status.bg, status.color)}>
+                            <Card key={cost.id} className={cn(
+                                "hover:shadow-lg transition-all relative overflow-hidden group",
+                                status.borderClass,
+                                status.cardClass
+                            )}>
+                                <div className={cn("absolute top-0 right-0 px-3 py-1 text-xs font-bold rounded-bl-lg z-10", status.badgeClass)}>
                                     {status.label}
                                 </div>
                                 <CardHeader className="pb-2">
