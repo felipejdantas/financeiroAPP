@@ -57,7 +57,7 @@ export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias,
     if (despesa) {
       form.reset({
         Responsavel: despesa.Responsavel,
-        Tipo: despesa.Tipo as "Crédito" | "Débito" | "Pix" | "Dinheiro",
+        Tipo: (["Crédito", "Débito", "Pix", "Dinheiro"].find(t => t.toLowerCase() === (despesa.Tipo || "").toLowerCase().trim()) || "Crédito") as "Crédito" | "Débito" | "Pix" | "Dinheiro",
         Data: despesa.Data,
         Descrição: despesa.Descrição,
         Parcelas: despesa.Parcelas,

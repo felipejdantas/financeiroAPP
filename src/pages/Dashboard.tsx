@@ -516,7 +516,7 @@ const Dashboard = () => {
     if (!userId) return;
 
     try {
-      const tableName = despesa.Tipo === "Débito" ? "Financeiro Debito" : "Financeiro Cartão";
+      const tableName = despesa.Tipo === "Crédito" ? "Financeiro Cartão" : "Financeiro Debito";
 
       if (despesa.id) {
         const { error } = await supabase
@@ -605,7 +605,7 @@ const Dashboard = () => {
     if (!userId) return;
 
     try {
-      const tableName = despesa.Tipo === "Débito" ? "Financeiro Debito" : "Financeiro Cartão";
+      const tableName = despesa.Tipo === "Crédito" ? "Financeiro Cartão" : "Financeiro Debito";
 
       const { error } = await supabase
         .from(tableName)
