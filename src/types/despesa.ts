@@ -10,6 +10,7 @@ export interface Despesa {
   created_at?: string;
   fixed_cost_id?: number;
   status?: 'pendente' | 'pago';
+  table?: 'cartao' | 'debito';
 }
 
 export type ResponsavelFilter = 'todos' | string;

@@ -83,8 +83,8 @@ export default function Expenses() {
             if (debitoResult.error) throw debitoResult.error;
 
             const todasDespesas = [
-                ...(cartaoResult.data || []),
-                ...(debitoResult.data || []),
+                ...(cartaoResult.data || []).map(d => ({ ...d, table: 'cartao' as const })),
+                ...(debitoResult.data || []).map(d => ({ ...d, table: 'debito' as const })),
             ].sort((a, b) => (b.id || 0) - (a.id || 0));
 
             setDespesas(todasDespesas);
@@ -272,22 +272,47 @@ export default function Expenses() {
             const tableName = despesa.Tipo === "Crédito" ? "Financeiro Cartão" : "Financeiro Debito";
 
             if (despesa.id) {
-                const { error } = await supabase
-                    .from(tableName)
-                    .update({
-                        Responsavel: despesa.Responsavel,
-                        Tipo: despesa.Tipo,
-                        Categoria: despesa.Categoria,
-                        Parcelas: despesa.Parcelas,
-                        Descrição: despesa["Descrição"],
-                        Data: despesa.Data,
-                        valor: despesa.valor,
-                        created_at: despesa.created_at
-                    })
-                    .eq("id", despesa.id);
+                // Find existing expense to check for table change
+                const existingDespesa = despesas.find(d => d.id === despesa.id);
+                const oldTableName = existingDespesa?.Tipo === "Crédito" ? "Financeiro Cartão" : "Financeiro Debito";
 
-                if (error) throw error;
-                toast({ title: "Despesa atualizada com sucesso!" });
+                const updatePayload: any = {
+                    Responsavel: despesa.Responsavel,
+                    Tipo: despesa.Tipo,
+                    Categoria: despesa.Categoria,
+                    Parcelas: despesa.Parcelas,
+                    Descrição: despesa["Descrição"],
+                    Data: despesa.Data,
+                    valor: despesa.valor,
+                    created_at: despesa.created_at,
+                    fixed_cost_id: despesa.fixed_cost_id || existingDespesa?.fixed_cost_id,
+                    status: despesa.status || existingDespesa?.status
+                };
+
+                if (oldTableName !== tableName) {
+                    // Record migration
+                    const { error: insertError } = await supabase
+                        .from(tableName)
+                        .insert([updatePayload]);
+                    if (insertError) throw insertError;
+
+                    const { error: deleteError } = await supabase
+                        .from(oldTableName)
+                        .delete()
+                        .eq("id", despesa.id);
+                    if (deleteError) throw deleteError;
+
+                    toast({ title: "Despesa movida e atualizada com sucesso!" });
+                } else {
+                    // Normal update
+                    const { error } = await supabase
+                        .from(tableName)
+                        .update(updatePayload)
+                        .eq("id", despesa.id);
+
+                    if (error) throw error;
+                    toast({ title: "Despesa atualizada com sucesso!" });
+                }
             } else {
                 const parcelasMatch = despesa.Parcelas?.match(/(\d+)x?/i);
                 const numeroParcelas = parcelasMatch ? parseInt(parcelasMatch[1]) : 1;
@@ -310,7 +335,9 @@ export default function Expenses() {
                             Data: dataParcela,
                             valor: valorParcela,
                             user_id: userId,
-                            created_at: despesa.created_at
+                            created_at: despesa.created_at,
+                            fixed_cost_id: despesa.fixed_cost_id,
+                            status: despesa.status
                         });
                     }
 
@@ -332,7 +359,9 @@ export default function Expenses() {
                             Data: despesa.Data,
                             valor: despesa.valor,
                             user_id: userId,
-                            created_at: despesa.created_at
+                            created_at: despesa.created_at,
+                            fixed_cost_id: despesa.fixed_cost_id,
+                            status: despesa.status
                         }]);
 
                     if (error) throw error;
@@ -513,15 +542,13 @@ export default function Expenses() {
 
         try {
             const selectedDespesas = despesas.filter(d => d.id && selectedExpenseIds.includes(d.id));
-            const cartaoDespesas = selectedDespesas.filter(d => d.Tipo === "Crédito");
-            const debitoDespesas = selectedDespesas.filter(d => d.Tipo !== "Crédito");
 
             const updateData: any = {};
             if (updates.categoria) updateData.Categoria = updates.categoria;
             if (updates.responsavel) updateData.Responsavel = updates.responsavel;
             if (updates.created_at) updateData.created_at = updates.created_at;
 
-            const needsTableChange = updates.tipo && selectedDespesas.some(d =>
+            const needsTableChange = (updates.tipo === "Crédito" || updates.tipo === "Débito") && selectedDespesas.some(d =>
                 (updates.tipo === "Crédito" && d.Tipo !== "Crédito") ||
                 (updates.tipo !== "Crédito" && d.Tipo === "Crédito")
             );
@@ -541,7 +568,9 @@ export default function Expenses() {
                             Data: despesa.Data,
                             valor: despesa.valor,
                             user_id: userId,
-                            created_at: updates.created_at || despesa.created_at
+                            created_at: updates.created_at || despesa.created_at,
+                            fixed_cost_id: despesa.fixed_cost_id,
+                            status: despesa.status
                         };
 
                         const { error: insertError } = await supabase.from(targetTable).insert([newData]);
@@ -550,11 +579,8 @@ export default function Expenses() {
                         const { error: deleteError } = await supabase.from(currentTable).delete().eq("id", despesa.id!);
                         if (deleteError) throw deleteError;
                     } else {
-                        const updates_local: any = {};
-                        if (updates.categoria) updates_local.Categoria = updates.categoria;
-                        if (updates.responsavel) updates_local.Responsavel = updates.responsavel;
+                        const updates_local: any = { ...updateData };
                         if (updates.tipo) updates_local.Tipo = updates.tipo;
-                        if (updates.created_at) updates_local.created_at = updates.created_at;
 
                         const { error } = await supabase
                             .from(currentTable)
@@ -567,6 +593,9 @@ export default function Expenses() {
                 if (updates.tipo) updateData.Tipo = updates.tipo;
 
                 if (Object.keys(updateData).length > 0) {
+                    const cartaoDespesas = selectedDespesas.filter(d => d.Tipo === "Crédito");
+                    const debitoDespesas = selectedDespesas.filter(d => d.Tipo !== "Crédito");
+
                     if (cartaoDespesas.length > 0) {
                         const cartaoIds = cartaoDespesas.map(d => d.id!);
                         const { error } = await supabase
