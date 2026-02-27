@@ -207,7 +207,7 @@ export default function Expenses() {
             return false;
         }
 
-        if (responsavelFilter.length > 0 && !responsavelFilter.includes(despesa.Responsavel)) {
+        if (responsavelFilter.length > 0 && !responsavelFilter.includes((despesa.Responsavel || "").trim())) {
             return false;
         }
 
@@ -215,7 +215,7 @@ export default function Expenses() {
             return false;
         }
 
-        if (categoriaFilter.length > 0 && !categoriaFilter.includes(despesa.Categoria)) {
+        if (categoriaFilter.length > 0 && !categoriaFilter.includes((despesa.Categoria || "").trim())) {
             return false;
         }
 
@@ -265,16 +265,21 @@ export default function Expenses() {
         return true;
     });
 
-    const handleAddOrUpdate = async (despesa: Omit<Despesa, "id"> & { id?: number }) => {
+    const handleAddOrUpdate = async (despesa: Omit<Despesa, "id"> & { id?: number }, originalTable?: 'cartao' | 'debito') => {
         if (!userId) return;
 
         try {
             const tableName = despesa.Tipo === "Crédito" ? "Financeiro Cartão" : "Financeiro Debito";
 
             if (despesa.id) {
-                // Find existing expense to check for table change
-                const existingDespesa = despesas.find(d => d.id === despesa.id);
-                const oldTableName = existingDespesa?.Tipo === "Crédito" ? "Financeiro Cartão" : "Financeiro Debito";
+                // Use explicit original table if provided, or find it (less reliable)
+                let oldTableName = originalTable === 'cartao' ? "Financeiro Cartão" : (originalTable === 'debito' ? "Financeiro Debito" : undefined);
+
+                // Fallback for safety (though with originalTable it shouldn't be needed)
+                if (!oldTableName) {
+                    const existingDespesa = despesas.find(d => d.id === despesa.id);
+                    oldTableName = existingDespesa?.Tipo === "Crédito" ? "Financeiro Cartão" : "Financeiro Debito";
+                }
 
                 const updatePayload: any = {
                     Responsavel: despesa.Responsavel,
@@ -284,29 +289,31 @@ export default function Expenses() {
                     Descrição: despesa["Descrição"],
                     Data: despesa.Data,
                     valor: despesa.valor,
+                    user_id: userId,
                     created_at: despesa.created_at,
-                    fixed_cost_id: despesa.fixed_cost_id || existingDespesa?.fixed_cost_id,
-                    status: despesa.status || existingDespesa?.status
+                    fixed_cost_id: despesa.fixed_cost_id,
+                    status: despesa.status
                 };
 
                 if (oldTableName !== tableName) {
-                    // Record migration
+                    // Record migration - Insert new
                     const { error: insertError } = await supabase
-                        .from(tableName)
+                        .from(tableName as any)
                         .insert([updatePayload]);
                     if (insertError) throw insertError;
 
+                    // Delete old from the specific original table
                     const { error: deleteError } = await supabase
-                        .from(oldTableName)
+                        .from(oldTableName as any)
                         .delete()
                         .eq("id", despesa.id);
                     if (deleteError) throw deleteError;
 
                     toast({ title: "Despesa movida e atualizada com sucesso!" });
                 } else {
-                    // Normal update
+                    // Normal update in the same table
                     const { error } = await supabase
-                        .from(tableName)
+                        .from(tableName as any)
                         .update(updatePayload)
                         .eq("id", despesa.id);
 
@@ -314,6 +321,7 @@ export default function Expenses() {
                     toast({ title: "Despesa atualizada com sucesso!" });
                 }
             } else {
+                // ... (rest of the insert logic remains same)
                 const parcelasMatch = despesa.Parcelas?.match(/(\d+)x?/i);
                 const numeroParcelas = parcelasMatch ? parseInt(parcelasMatch[1]) : 1;
 
@@ -342,14 +350,14 @@ export default function Expenses() {
                     }
 
                     const { error } = await supabase
-                        .from(tableName)
+                        .from(tableName as any)
                         .insert(despesasParceladas);
 
                     if (error) throw error;
                     toast({ title: `${numeroParcelas} despesas parceladas criadas com sucesso!` });
                 } else {
                     const { error } = await supabase
-                        .from(tableName)
+                        .from(tableName as any)
                         .insert([{
                             Responsavel: despesa.Responsavel,
                             Tipo: despesa.Tipo,
@@ -381,13 +389,14 @@ export default function Expenses() {
     };
 
     const handleDuplicate = async (despesa: Despesa) => {
+        // ... (duplicate logic)
         if (!userId) return;
 
         try {
             const tableName = despesa.Tipo === "Crédito" ? "Financeiro Cartão" : "Financeiro Debito";
 
             const { error } = await supabase
-                .from(tableName)
+                .from(tableName as any)
                 .insert([{
                     Responsavel: despesa.Responsavel,
                     Tipo: despesa.Tipo,
@@ -420,8 +429,9 @@ export default function Expenses() {
             const despesa = despesas.find((d) => d.id === despesaToDelete);
             if (!despesa) return;
 
-            // Tenta deletar da tabela baseada no Tipo
-            let tableName = despesa.Tipo === "Crédito" ? "Financeiro Cartão" : "Financeiro Debito";
+            // Use table field if available, otherwise fallback
+            let tableName = despesa.table === 'cartao' ? "Financeiro Cartão" : (despesa.table === 'debito' ? "Financeiro Debito" : (despesa.Tipo === "Crédito" ? "Financeiro Cartão" : "Financeiro Debito"));
+
             let { error, count } = await supabase
                 .from(tableName as any)
                 .delete({ count: 'exact' })
@@ -485,8 +495,10 @@ export default function Expenses() {
         await handleAddOrUpdate({
             ...data,
             id: editingDespesa?.id,
+            fixed_cost_id: editingDespesa?.fixed_cost_id,
+            status: editingDespesa?.status,
             created_at: data.created_at ? new Date(data.created_at).toISOString() : undefined
-        });
+        }, editingDespesa?.table);
         handleFormClose();
     };
 
@@ -555,7 +567,7 @@ export default function Expenses() {
 
             if (needsTableChange && updates.tipo) {
                 for (const despesa of selectedDespesas) {
-                    const currentTable = despesa.Tipo === "Crédito" ? "Financeiro Cartão" : "Financeiro Debito";
+                    const currentTable = despesa.table === 'cartao' ? "Financeiro Cartão" : "Financeiro Debito";
                     const targetTable = updates.tipo === "Crédito" ? "Financeiro Cartão" : "Financeiro Debito";
 
                     if (currentTable !== targetTable) {
@@ -573,17 +585,17 @@ export default function Expenses() {
                             status: despesa.status
                         };
 
-                        const { error: insertError } = await supabase.from(targetTable).insert([newData]);
+                        const { error: insertError } = await supabase.from(targetTable as any).insert([newData]);
                         if (insertError) throw insertError;
 
-                        const { error: deleteError } = await supabase.from(currentTable).delete().eq("id", despesa.id!);
+                        const { error: deleteError } = await supabase.from(currentTable as any).delete().eq("id", despesa.id!);
                         if (deleteError) throw deleteError;
                     } else {
                         const updates_local: any = { ...updateData };
                         if (updates.tipo) updates_local.Tipo = updates.tipo;
 
                         const { error } = await supabase
-                            .from(currentTable)
+                            .from(currentTable as any)
                             .update(updates_local)
                             .eq("id", despesa.id!);
                         if (error) throw error;
@@ -697,8 +709,8 @@ export default function Expenses() {
                         onMesSelecionado={setMesSelecionado}
                         anoSelecionado={anoSelecionado}
                         setAnoSelecionado={setAnoSelecionado}
-                        categorias={[...new Set(despesas.map(d => d.Categoria).filter(Boolean))]}
-                        responsaveis={[...new Set(despesas.map(d => d.Responsavel).filter(Boolean))]}
+                        categorias={[...new Set(despesas.map(d => (d.Categoria || "").trim()).filter(Boolean))]}
+                        responsaveis={[...new Set(despesas.map(d => (d.Responsavel || "").trim()).filter(Boolean))]}
                         periodosMensais={periodosMensais}
                         userId={userId || ""}
                         onClearFilters={limparFiltros}

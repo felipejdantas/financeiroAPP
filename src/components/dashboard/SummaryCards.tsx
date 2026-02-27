@@ -36,20 +36,20 @@ export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange,
     .reduce((sum, d) => sum + d.valor, 0);
 
   // Agrupar por responsável (Geral)
-  const responsaveis = [...new Set(despesas.map((d) => d.Responsavel).filter(Boolean))];
+  const responsaveis = [...new Set(despesas.map((d) => (d.Responsavel || "").trim()).filter(Boolean))];
   const totaisPorResponsavel = responsaveis.map((resp) => {
     const total = despesas
-      .filter((d) => d.Responsavel === resp)
+      .filter((d) => (d.Responsavel || "").trim() === resp)
       .reduce((sum, d) => sum + d.valor, 0);
     return { nome: resp, total };
   });
 
   // Agrupar por responsável (Apenas Cartão de Crédito)
   const despesasCredito = despesas.filter((d) => d.Tipo === "Crédito");
-  const responsaveisCredito = [...new Set(despesasCredito.map((d) => d.Responsavel).filter(Boolean))];
+  const responsaveisCredito = [...new Set(despesasCredito.map((d) => (d.Responsavel || "").trim()).filter(Boolean))];
   const totaisPorResponsavelCredito = responsaveisCredito.map((resp) => {
     const total = despesasCredito
-      .filter((d) => d.Responsavel === resp)
+      .filter((d) => (d.Responsavel || "").trim() === resp)
       .reduce((sum, d) => sum + d.valor, 0);
     return { nome: resp, total };
   });

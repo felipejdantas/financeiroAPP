@@ -88,7 +88,14 @@ export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias,
   }, [despesa, defaultResponsavel, form]);
 
   const handleSubmit = async (data: DespesaFormValues) => {
-    await onSubmit(data);
+    // Normalização de dados (remover espaços em branco extras)
+    const normalizedData = {
+      ...data,
+      Responsavel: data.Responsavel.trim(),
+      Categoria: data.Categoria.trim(),
+      Descrição: data.Descrição.trim(),
+    };
+    await onSubmit(normalizedData);
     form.reset();
     onOpenChange(false);
   };

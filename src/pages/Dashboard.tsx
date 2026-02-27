@@ -94,8 +94,8 @@ const Dashboard = () => {
       if (debitoResult.error) throw debitoResult.error;
 
       const todasDespesas = [
-        ...(cartaoResult.data || []),
-        ...(debitoResult.data || []),
+        ...(cartaoResult.data || []).map(d => ({ ...d, table: 'cartao' as const })),
+        ...(debitoResult.data || []).map(d => ({ ...d, table: 'debito' as const })),
       ].sort((a, b) => (b.id || 0) - (a.id || 0));
 
       setDespesas(todasDespesas);
@@ -512,36 +512,66 @@ const Dashboard = () => {
 
   const saldoAcumulado = calcularSaldoAcumulado();
 
-  const handleAddOrUpdate = async (despesa: Omit<Despesa, "id"> & { id?: number }) => {
+  const handleAddOrUpdate = async (despesa: Omit<Despesa, "id"> & { id?: number }, originalTable?: 'cartao' | 'debito') => {
     if (!userId) return;
 
     try {
       const tableName = despesa.Tipo === "Crédito" ? "Financeiro Cartão" : "Financeiro Debito";
 
       if (despesa.id) {
-        const { error } = await supabase
-          .from(tableName)
-          .update({
-            Responsavel: despesa.Responsavel,
-            Tipo: despesa.Tipo,
-            Categoria: despesa.Categoria,
-            Parcelas: despesa.Parcelas,
-            Descrição: despesa["Descrição"],
-            Data: despesa.Data,
-            valor: despesa.valor,
-            created_at: despesa.created_at
-          })
-          .eq("id", despesa.id);
+        // Uso de tabela original explícita se fornecida, ou tentativa de encontrar
+        let oldTableName = originalTable === 'cartao' ? "Financeiro Cartão" : (originalTable === 'debito' ? "Financeiro Debito" : undefined);
 
-        if (error) throw error;
-        toast({ title: "Despesa atualizada com sucesso!" });
+        if (!oldTableName) {
+          const existingDespesa = despesas.find(d => d.id === despesa.id);
+          oldTableName = existingDespesa?.table === 'cartao' ? "Financeiro Cartão" : "Financeiro Debito";
+        }
+
+        const updatePayload: any = {
+          Responsavel: despesa.Responsavel,
+          Tipo: despesa.Tipo,
+          Categoria: despesa.Categoria,
+          Parcelas: despesa.Parcelas,
+          Descrição: despesa["Descrição"],
+          Data: despesa.Data,
+          valor: despesa.valor,
+          user_id: userId,
+          created_at: despesa.created_at,
+          fixed_cost_id: despesa.fixed_cost_id,
+          status: despesa.status
+        };
+
+        if (oldTableName !== tableName) {
+          // Migração de registro - Inserir novo
+          const { error: insertError } = await supabase
+            .from(tableName as any)
+            .insert([updatePayload]);
+          if (insertError) throw insertError;
+
+          // Deletar antigo da tabela original específica
+          const { error: deleteError } = await supabase
+            .from(oldTableName as any)
+            .delete()
+            .eq("id", despesa.id);
+          if (deleteError) throw deleteError;
+
+          toast({ title: "Despesa movida e atualizada com sucesso!" });
+        } else {
+          // Atualização normal na mesma tabela
+          const { error } = await supabase
+            .from(tableName as any)
+            .update(updatePayload)
+            .eq("id", despesa.id);
+
+          if (error) throw error;
+          toast({ title: "Despesa atualizada com sucesso!" });
+        }
       } else {
-        // Verificar se há parcelas
+        // Lógica de inserção (incluindo parcelamento)
         const parcelasMatch = despesa.Parcelas?.match(/(\d+)x?/i);
         const numeroParcelas = parcelasMatch ? parseInt(parcelasMatch[1]) : 1;
 
         if (numeroParcelas > 1) {
-          // Criar múltiplas despesas parceladas
           const valorParcela = despesa.valor / numeroParcelas;
           const dataInicial = brToDate(despesa.Data);
           const despesasParceladas = [];
@@ -559,20 +589,21 @@ const Dashboard = () => {
               Data: dataParcela,
               valor: valorParcela,
               user_id: userId,
-              created_at: despesa.created_at
+              created_at: despesa.created_at,
+              fixed_cost_id: despesa.fixed_cost_id,
+              status: despesa.status
             });
           }
 
           const { error } = await supabase
-            .from(tableName)
+            .from(tableName as any)
             .insert(despesasParceladas);
 
           if (error) throw error;
           toast({ title: `${numeroParcelas} despesas parceladas criadas com sucesso!` });
         } else {
-          // Criar despesa única
           const { error } = await supabase
-            .from(tableName)
+            .from(tableName as any)
             .insert([{
               Responsavel: despesa.Responsavel,
               Tipo: despesa.Tipo,
@@ -582,7 +613,9 @@ const Dashboard = () => {
               Data: despesa.Data,
               valor: despesa.valor,
               user_id: userId,
-              created_at: despesa.created_at
+              created_at: despesa.created_at,
+              fixed_cost_id: despesa.fixed_cost_id,
+              status: despesa.status
             }]);
 
           if (error) throw error;
@@ -710,11 +743,11 @@ const Dashboard = () => {
         case "credito":
           return despesa.Tipo === "Crédito";
         case "responsavel_credito":
-          return despesa.Responsavel === activeSummaryFilter.value && despesa.Tipo === "Crédito";
+          return (despesa.Responsavel || "").trim() === activeSummaryFilter.value && despesa.Tipo === "Crédito";
         case "outros":
           return ["Pix", "Débito", "Dinheiro"].includes(despesa.Tipo);
         case "responsavel":
-          return despesa.Responsavel === activeSummaryFilter.value;
+          return (despesa.Responsavel || "").trim() === activeSummaryFilter.value;
         default:
           return true;
       }
@@ -738,8 +771,10 @@ const Dashboard = () => {
     await handleAddOrUpdate({
       ...data,
       id: editingDespesa?.id,
+      fixed_cost_id: editingDespesa?.fixed_cost_id,
+      status: editingDespesa?.status,
       created_at: data.created_at ? new Date(data.created_at).toISOString() : undefined
-    });
+    }, (editingDespesa as any)?.table);
     handleFormClose();
   };
 
