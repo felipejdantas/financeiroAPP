@@ -88,13 +88,26 @@ export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias,
   }, [despesa, defaultResponsavel, form]);
 
   const handleSubmit = async (data: DespesaFormValues) => {
-    // Normalização de dados (remover espaços em branco extras)
+    // Definir os tipos válidos exatamente como no schema
+    const tiposValidos: Record<string, "Crédito" | "Débito" | "Pix" | "Dinheiro"> = {
+      "credito": "Crédito",
+      "crédito": "Crédito",
+      "debito": "Débito",
+      "débito": "Débito",
+      "pix": "Pix",
+      "dinheiro": "Dinheiro"
+    };
+
+    const tipoOriginal = data.Tipo.trim().toLowerCase();
+    const tipoNormalizado = tiposValidos[tipoOriginal] || data.Tipo;
+
+    // Normalização de dados (remover espaços em branco extras e garantir acentos)
     const normalizedData = {
       ...data,
       Responsavel: data.Responsavel.trim(),
       Categoria: data.Categoria.trim(),
       Descrição: data.Descrição.trim(),
-      Tipo: data.Tipo.trim() as any,
+      Tipo: tipoNormalizado as any,
     };
     await onSubmit(normalizedData);
     form.reset();

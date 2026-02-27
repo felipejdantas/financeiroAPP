@@ -211,8 +211,15 @@ export default function Expenses() {
             return false;
         }
 
-        if (tipoFilter.length > 0 && !tipoFilter.includes((despesa.Tipo || "").trim())) {
-            return false;
+        if (tipoFilter.length > 0) {
+            const tipo = (despesa.Tipo || "").trim().toLowerCase();
+            const matchesFilter = tipoFilter.some(tf => {
+                const tfLower = tf.toLowerCase();
+                if (tfLower === "crédito" || tfLower === "credito") return tipo === "crédito" || tipo === "credito";
+                if (tfLower === "débito" || tfLower === "debito") return tipo === "débito" || tipo === "debito";
+                return tipo === tfLower;
+            });
+            if (!matchesFilter) return false;
         }
 
         if (categoriaFilter.length > 0 && !categoriaFilter.includes((despesa.Categoria || "").trim())) {
@@ -225,9 +232,11 @@ export default function Expenses() {
             if (!parcelaFilter.includes(totalParcelas)) return false;
         }
 
+        const tipoNormalizado = (despesa.Tipo || "").trim().toLowerCase();
+        const isCredito = tipoNormalizado === "crédito" || tipoNormalizado === "credito";
         const despesaDate = brToDate(despesa.Data);
 
-        if (despesa.Tipo === "Crédito") {
+        if (isCredito) {
             if (dataInicio) {
                 const dataInicioDate = inputToDate(dataInicio);
                 dataInicioDate.setHours(0, 0, 0, 0);
@@ -269,7 +278,18 @@ export default function Expenses() {
         if (!userId) return;
 
         try {
-            const tableName = despesa.Tipo === "Crédito" ? "Financeiro Cartão" : "Financeiro Debito";
+            const tiposValidos: Record<string, "Crédito" | "Débito" | "Pix" | "Dinheiro"> = {
+                "credito": "Crédito",
+                "crédito": "Crédito",
+                "debito": "Débito",
+                "débito": "Débito",
+                "pix": "Pix",
+                "dinheiro": "Dinheiro"
+            };
+
+            const tipoOriginal = (despesa.Tipo || "").trim().toLowerCase();
+            const tipoNormalizado = tiposValidos[tipoOriginal] || despesa.Tipo;
+            const tableName = tipoNormalizado === "Crédito" ? "Financeiro Cartão" : "Financeiro Debito";
 
             if (despesa.id) {
                 // Migração de tabela se o Tipo mudou

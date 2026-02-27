@@ -422,8 +422,10 @@ const Dashboard = () => {
   // Helper para verificar data
   const isDespesaInPeriod = (despesa: Despesa) => {
     const despesaDate = brToDate(despesa.Data);
+    const tipoNormalizado = (despesa.Tipo || "").trim().toLowerCase();
+    const isCredito = tipoNormalizado === "crédito" || tipoNormalizado === "credito";
 
-    if (despesa.Tipo === "Crédito") {
+    if (isCredito) {
       if (dataInicio) {
         const dataInicioDate = inputToDate(dataInicio);
         dataInicioDate.setHours(0, 0, 0, 0);
@@ -737,16 +739,25 @@ const Dashboard = () => {
       return despesasPendentes;
     }
 
-    return despesasFiltradas.filter(despesa => {
-      if (!activeSummaryFilter) return true;
+    // Se o filtro for total ou nulo, incluímos as pendentes se não houver filtro ativo
+    // ou se o filtro for especificamente "total"
+    let baseDespesas = despesasFiltradas;
+    if (!activeSummaryFilter || activeSummaryFilter.type === 'total') {
+      baseDespesas = [...despesasFiltradas, ...despesasPendentes];
+    }
+
+    return baseDespesas.filter(despesa => {
+      if (!activeSummaryFilter || activeSummaryFilter.type === 'total') return true;
+
+      const tipo = (despesa.Tipo || "").trim().toLowerCase();
 
       switch (activeSummaryFilter.type) {
         case "credito":
-          return despesa.Tipo === "Crédito";
+          return tipo === "crédito" || tipo === "credito";
         case "responsavel_credito":
-          return (despesa.Responsavel || "").trim() === activeSummaryFilter.value && despesa.Tipo === "Crédito";
+          return (despesa.Responsavel || "").trim() === activeSummaryFilter.value && (tipo === "crédito" || tipo === "credito");
         case "outros":
-          return ["Pix", "Débito", "Dinheiro"].includes(despesa.Tipo);
+          return ["pix", "débito", "debito", "dinheiro"].includes(tipo);
         case "responsavel":
           return (despesa.Responsavel || "").trim() === activeSummaryFilter.value;
         default:

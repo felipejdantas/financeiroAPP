@@ -18,7 +18,10 @@ export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange,
   // Saldo real considers only direct payments (Pix, Debit, Cash)
   // It specifically Excludes Credit Card (which are future payments) and Pending items
   const totalDirectExpenses = despesas
-    .filter((d) => ["Pix", "Débito", "Dinheiro"].includes(d.Tipo))
+    .filter((d) => {
+      const tipo = (d.Tipo || "").trim().toLowerCase();
+      return ["pix", "débito", "debito", "dinheiro"].includes(tipo);
+    })
     .reduce((sum, d) => sum + d.valor, 0);
 
   const saldo = totalReceita - totalDirectExpenses;
@@ -28,11 +31,17 @@ export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange,
 
   // Separar por tipo de pagamento
   const totalCredito = despesas
-    .filter((d) => d.Tipo === "Crédito")
+    .filter((d) => {
+      const tipo = (d.Tipo || "").trim().toLowerCase();
+      return tipo === "crédito" || tipo === "credito";
+    })
     .reduce((sum, d) => sum + d.valor, 0);
 
   const totalOutros = despesas
-    .filter((d) => ["Pix", "Débito", "Dinheiro"].includes(d.Tipo))
+    .filter((d) => {
+      const tipo = (d.Tipo || "").trim().toLowerCase();
+      return ["pix", "débito", "debito", "dinheiro"].includes(tipo);
+    })
     .reduce((sum, d) => sum + d.valor, 0);
 
   // Agrupar por responsável (Geral)
@@ -45,7 +54,10 @@ export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange,
   });
 
   // Agrupar por responsável (Apenas Cartão de Crédito)
-  const despesasCredito = despesas.filter((d) => d.Tipo === "Crédito");
+  const despesasCredito = despesas.filter((d) => {
+    const tipo = (d.Tipo || "").trim().toLowerCase();
+    return tipo === "crédito" || tipo === "credito";
+  });
   const responsaveisCredito = [...new Set(despesasCredito.map((d) => (d.Responsavel || "").trim()).filter(Boolean))];
   const totaisPorResponsavelCredito = responsaveisCredito.map((resp) => {
     const total = despesasCredito
