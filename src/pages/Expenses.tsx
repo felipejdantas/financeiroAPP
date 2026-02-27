@@ -211,7 +211,7 @@ export default function Expenses() {
             return false;
         }
 
-        if (tipoFilter.length > 0 && !tipoFilter.includes(despesa.Tipo)) {
+        if (tipoFilter.length > 0 && !tipoFilter.includes((despesa.Tipo || "").trim())) {
             return false;
         }
 
@@ -272,13 +272,12 @@ export default function Expenses() {
             const tableName = despesa.Tipo === "Crédito" ? "Financeiro Cartão" : "Financeiro Debito";
 
             if (despesa.id) {
-                // Use explicit original table if provided, or find it (less reliable)
+                // Migração de tabela se o Tipo mudou
                 let oldTableName = originalTable === 'cartao' ? "Financeiro Cartão" : (originalTable === 'debito' ? "Financeiro Debito" : undefined);
 
-                // Fallback for safety (though with originalTable it shouldn't be needed)
                 if (!oldTableName) {
                     const existingDespesa = despesas.find(d => d.id === despesa.id);
-                    oldTableName = existingDespesa?.Tipo === "Crédito" ? "Financeiro Cartão" : "Financeiro Debito";
+                    oldTableName = existingDespesa?.table === 'cartao' ? "Financeiro Cartão" : "Financeiro Debito";
                 }
 
                 const updatePayload: any = {
@@ -292,17 +291,16 @@ export default function Expenses() {
                     user_id: userId,
                     created_at: despesa.created_at,
                     fixed_cost_id: despesa.fixed_cost_id,
-                    status: despesa.status
+                    // Se estivermos editando uma despesa pendente, marcamos como não pendente (pago/confirmado)
+                    status: despesa.status === 'pendente' ? null : despesa.status
                 };
 
                 if (oldTableName !== tableName) {
-                    // Record migration - Insert new
                     const { error: insertError } = await supabase
                         .from(tableName as any)
                         .insert([updatePayload]);
                     if (insertError) throw insertError;
 
-                    // Delete old from the specific original table
                     const { error: deleteError } = await supabase
                         .from(oldTableName as any)
                         .delete()
@@ -311,7 +309,6 @@ export default function Expenses() {
 
                     toast({ title: "Despesa movida e atualizada com sucesso!" });
                 } else {
-                    // Normal update in the same table
                     const { error } = await supabase
                         .from(tableName as any)
                         .update(updatePayload)

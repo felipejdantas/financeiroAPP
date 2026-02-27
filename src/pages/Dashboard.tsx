@@ -538,7 +538,8 @@ const Dashboard = () => {
           user_id: userId,
           created_at: despesa.created_at,
           fixed_cost_id: despesa.fixed_cost_id,
-          status: despesa.status
+          // Se estivermos editando uma despesa pendente, marcamos como não pendente (pago/confirmado)
+          status: despesa.status === 'pendente' ? null : despesa.status
         };
 
         if (oldTableName !== tableName) {

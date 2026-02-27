@@ -94,6 +94,7 @@ export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias,
       Responsavel: data.Responsavel.trim(),
       Categoria: data.Categoria.trim(),
       Descrição: data.Descrição.trim(),
+      Tipo: data.Tipo.trim() as any,
     };
     await onSubmit(normalizedData);
     form.reset();
