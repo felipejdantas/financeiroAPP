@@ -113,8 +113,8 @@ export const Notifications = () => {
 
             if (budgets && budgets.length > 0) {
                 const [cartaoResult, debitoResult] = await Promise.all([
-                    supabase.from("Financeiro Cartão").select("val:valor, cat:Categoria, dt:Data").eq('user_id', user.id),
-                    supabase.from("Financeiro Debito").select("val:valor, cat:Categoria, dt:Data").eq('user_id', user.id),
+                    supabase.from("Financeiro Cartão").select("val:valor, cat:Categoria, dt:Data").eq('user_id', user.id).order('id', { ascending: false }),
+                    supabase.from("Financeiro Debito").select("val:valor, cat:Categoria, dt:Data").eq('user_id', user.id).order('id', { ascending: false }),
                 ]);
 
                 const expenses = [

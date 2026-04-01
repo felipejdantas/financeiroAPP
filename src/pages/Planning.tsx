@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { Progress } from "@/components/ui/progress";
+import { fetchAllUserRecords } from "@/utils/fetchUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -57,14 +59,14 @@ export default function Planning() {
 
         try {
             // Fetch categories
-            const { data: cats, error: catError } = await supabase
-                .from("categorias")
+            const { data: cats, error: catError } = await (supabase
+                .from("categorias" as any)
                 .select("nome")
                 .eq("user_id", userId)
-                .order("nome");
+                .order("nome")) as any;
 
             if (catError) throw catError;
-            const categoryNames = cats?.map(c => c.nome) || [];
+            const categoryNames = cats?.map((c: any) => c.nome) || [];
             setCategorias(categoryNames);
 
             // Fetch budget goals
@@ -78,17 +80,14 @@ export default function Planning() {
             if (budgetError) throw budgetError;
 
             // Fetch actual expenses
-            const [cartaoResult, debitoResult] = await Promise.all([
-                supabase.from("Financeiro Cartão").select("*").eq('user_id', userId),
-                supabase.from("Financeiro Debito").select("*").eq('user_id', userId),
+            const [cartaoData, debitoData] = await Promise.all([
+                fetchAllUserRecords("Financeiro Cartão", userId),
+                fetchAllUserRecords("Financeiro Debito", userId)
             ]);
 
-            if (cartaoResult.error) throw cartaoResult.error;
-            if (debitoResult.error) throw debitoResult.error;
-
             const allExpenses = [
-                ...(cartaoResult.data || []),
-                ...(debitoResult.data || []),
+                ...cartaoData,
+                ...debitoData,
             ];
 
             // Process data

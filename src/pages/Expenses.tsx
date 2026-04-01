@@ -11,7 +11,8 @@ import { DespesaForm } from "@/components/dashboard/DespesaForm";
 import { BulkEditDialog, BulkEditUpdates } from "@/components/dashboard/BulkEditDialog";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { format, addMonths } from "date-fns";
+import { format, subDays, parseISO, startOfMonth, startOfToday, subMonths, addMonths } from "date-fns";
+import { fetchAllUserRecords } from "@/utils/fetchUtils";
 
 // Funções utilitárias para conversão de datas
 const brToDate = (dataBr: string): Date => {
@@ -74,17 +75,14 @@ export default function Expenses() {
         setLoading(true);
 
         try {
-            const [cartaoResult, debitoResult] = await Promise.all([
-                supabase.from("Financeiro Cartão").select("*").eq('user_id', userId),
-                supabase.from("Financeiro Debito").select("*").eq('user_id', userId),
+            const [cartaoData, debitoData] = await Promise.all([
+                fetchAllUserRecords("Financeiro Cartão", userId),
+                fetchAllUserRecords("Financeiro Debito", userId)
             ]);
 
-            if (cartaoResult.error) throw cartaoResult.error;
-            if (debitoResult.error) throw debitoResult.error;
-
             const todasDespesas = [
-                ...(cartaoResult.data || []).map(d => ({ ...d, table: 'cartao' as const })),
-                ...(debitoResult.data || []).map(d => ({ ...d, table: 'debito' as const })),
+                ...cartaoData.map((d: any) => ({ ...d, table: 'cartao' as const })),
+                ...debitoData.map((d: any) => ({ ...d, table: 'debito' as const })),
             ].sort((a, b) => (b.id || 0) - (a.id || 0));
 
             setDespesas(todasDespesas);

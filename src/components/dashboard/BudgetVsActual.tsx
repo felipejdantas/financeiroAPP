@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { PieChart, Pie, Cell, ResponsiveContainer, Label } from "recharts";
+import { fetchAllUserRecords } from "@/utils/fetchUtils";
 
 interface BudgetVsActualProps {
     currentMonth: number;
@@ -42,17 +43,14 @@ export function BudgetVsActual({ currentMonth, currentYear, userId }: BudgetVsAc
             if (budgetError) throw budgetError;
 
             // 2. Fetch Actual Expenses
-            const [cartaoResult, debitoResult] = await Promise.all([
-                supabase.from("Financeiro Cartão").select("*").eq('user_id', userId),
-                supabase.from("Financeiro Debito").select("*").eq('user_id', userId),
+            const [cartaoData, debitoData] = await Promise.all([
+                fetchAllUserRecords("Financeiro Cartão", userId),
+                fetchAllUserRecords("Financeiro Debito", userId)
             ]);
 
-            if (cartaoResult.error) throw cartaoResult.error;
-            if (debitoResult.error) throw debitoResult.error;
-
             const allExpenses = [
-                ...(cartaoResult.data || []),
-                ...(debitoResult.data || []),
+                ...cartaoData,
+                ...debitoData,
             ];
 
             // 3. Process Data

@@ -27,6 +27,7 @@ import { PeriodosMensaisManager } from "@/components/dashboard/PeriodosMensaisMa
 import { GraficosComparativos } from "@/components/dashboard/GraficosComparativos";
 import { CategoryEmojiManager } from "@/components/dashboard/CategoryEmojiManager";
 import { format, addMonths } from "date-fns";
+import { fetchAllUserRecords } from "@/utils/fetchUtils";
 
 // Funções utilitárias para conversão de datas
 const brToDate = (dataBr: string): Date => {
@@ -93,17 +94,14 @@ const Index = () => {
     setError(null);
 
     try {
-      const [cartaoResult, debitoResult] = await Promise.all([
-        supabase.from("Financeiro Cartão").select("*").eq('user_id', userId),
-        supabase.from("Financeiro Debito").select("*").eq('user_id', userId),
+      const [cartaoData, debitoData] = await Promise.all([
+        fetchAllUserRecords("Financeiro Cartão", userId),
+        fetchAllUserRecords("Financeiro Debito", userId)
       ]);
 
-      if (cartaoResult.error) throw cartaoResult.error;
-      if (debitoResult.error) throw debitoResult.error;
-
       const todasDespesas = [
-        ...(cartaoResult.data || []),
-        ...(debitoResult.data || []),
+        ...cartaoData.map((d: any) => ({ ...d, table: 'cartao' as const })),
+        ...debitoData.map((d: any) => ({ ...d, table: 'debito' as const })),
       ].sort((a, b) => (b.id || 0) - (a.id || 0));
 
       setDespesas(todasDespesas);
@@ -700,9 +698,9 @@ const Index = () => {
             <ExportButton
               despesas={despesasFiltradas}
               filtrosAtivos={{
-                responsavel: responsavelFilter,
-                tipo: tipoFilter,
-                categoria: categoriaFilter
+                responsavel: responsavelFilter ? [responsavelFilter] : [],
+                tipo: tipoFilter ? [tipoFilter] : [],
+                categoria: categoriaFilter ? [categoriaFilter] : []
               }}
             />
             <DropdownMenu>
@@ -777,7 +775,12 @@ const Index = () => {
 
 
 
-        <SummaryCards despesas={despesasFiltradas} />
+        <SummaryCards 
+          despesas={despesasFiltradas} 
+          onFilterChange={() => {}}
+          activeFilter={null}
+          totalReceita={0}
+        />
 
         <CategoryCharts despesas={despesasFiltradas} />
 
