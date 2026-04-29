@@ -473,13 +473,18 @@ const Dashboard = () => {
   const totalReceita = receitasFiltradas.reduce((sum, r) => sum + Number(r.valor || 0), 0);
 
   const calcularSaldoAcumulado = () => {
-    if (!dataFim) return 0;
+    let dataLimite: Date;
 
-    // Data limite é o final do período selecionado
-    // Como a string dataFim vem 'yyyy-MM-dd', criamos uma data e ajustamos para o final do dia
-    const dataLimite = inputToDate(dataFim);
+    if (mesSelecionado) {
+      // Para o saldo da conta, o ideal é considerar até o último dia do mês civil 
+      // do mês selecionado, em vez da data de corte do cartão.
+      dataLimite = new Date(anoSelecionado, mesSelecionado, 0);
+    } else {
+      if (!dataFim) return 0;
+      dataLimite = inputToDate(dataFim);
+    }
+
     dataLimite.setHours(23, 59, 59, 999);
-
     const dataLimiteTime = dataLimite.getTime();
 
     // Receitas acumuladas até o momento
