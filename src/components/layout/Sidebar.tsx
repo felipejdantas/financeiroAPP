@@ -13,7 +13,8 @@ import {
     ChevronLeft,
     ChevronRight,
     Clock,
-    TrendingUp
+    TrendingUp,
+    PiggyBank
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -27,6 +28,7 @@ const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: Home },
     { name: "Receitas", href: "/revenues", icon: TrendingUp },
     { name: "Despesas", href: "/expenses", icon: CreditCard },
+    { name: "Investimentos", href: "/investments", icon: PiggyBank },
     { name: "Categorias", href: "/categories", icon: Tag },
     { name: "Despesas Fixas", href: "/fixed-costs", icon: Clock },
     { name: "Planejamento", href: "/planning", icon: Target },

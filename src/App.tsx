@@ -12,6 +12,7 @@ import Planning from "./pages/Planning";
 import Scheduling from "./pages/Scheduling";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
+import Investments from "./pages/Investments";
 import { FixedCosts } from "./pages/FixedCosts";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -46,6 +47,7 @@ const App = () => (
               <Route path="fixed-costs" element={<FixedCosts />} />
               <Route path="planning" element={<Planning />} />
               <Route path="scheduling" element={<Scheduling />} />
+              <Route path="investments" element={<Investments />} />
               <Route path="profile" element={<Profile />} />
               <Route path="settings" element={<Settings />} />
             </Route>
