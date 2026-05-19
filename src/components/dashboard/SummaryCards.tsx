@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Despesa } from "@/types/despesa";
-import { Wallet, CreditCard, Banknote, User, TrendingUp, Scale, ArrowUpCircle, ArrowDownCircle } from "lucide-react";
+import { Wallet, CreditCard, Banknote, User, TrendingUp, Scale, ArrowUpCircle, ArrowDownCircle, PiggyBank } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface SummaryCardsProps {
   despesas: Despesa[];
@@ -9,9 +10,11 @@ interface SummaryCardsProps {
   activeFilter: { type: string; value?: string } | null;
   totalReceita: number;
   saldoAcumulado?: number;
+  totalInvestido?: number;
 }
 
-export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange, activeFilter, totalReceita, saldoAcumulado }: SummaryCardsProps) => {
+export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange, activeFilter, totalReceita, saldoAcumulado, totalInvestido }: SummaryCardsProps) => {
+  const navigate = useNavigate();
   const totalPendentes = despesasPendentes.reduce((sum, d) => sum + (d.valor || 0), 0);
   const totalGeral = despesas.reduce((sum, d) => sum + d.valor, 0) + totalPendentes;
 
@@ -89,8 +92,8 @@ export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange,
 
   return (
     <div className="space-y-4">
-      {/* Linha 1: Saldo, Receita, Despesas (Diretas) */}
-      <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
+      {/* Linha 1: Saldo, Receita, Despesas, Investimentos */}
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         {/* Saldo - Posição 1 */}
         <Card className={`${saldo >= 0 ? 'bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800' : 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800'}`}>
           <CardHeader className="flex flex-row items-center justify-center gap-2 space-y-0 p-4 pb-2">
@@ -124,7 +127,7 @@ export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange,
           </CardContent>
         </Card>
 
-        {/* Despesas (antigo Outros/Diretas) - Posição 3 */}
+        {/* Despesas - Posição 3 */}
         <Card
           className={`${getCardStyle("outros")}`}
           onClick={() => onFilterChange("outros")}
@@ -137,6 +140,27 @@ export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange,
           </CardHeader>
           <CardContent className="p-4 pt-0 text-center">
             <div className="text-lg md:text-2xl font-bold text-card-foreground truncate">{formatCurrency(totalOutros)}</div>
+          </CardContent>
+        </Card>
+
+        {/* Investimentos - Posição 4 */}
+        <Card 
+          className="bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-800 cursor-pointer transition-all hover:shadow-md hover:scale-[1.02] active:scale-[0.98] duration-200"
+          onClick={() => navigate("/investments")}
+        >
+          <CardHeader className="flex flex-row items-center justify-center gap-2 space-y-0 p-4 pb-2">
+            <CardTitle className="text-sm font-medium text-orange-900 dark:text-orange-400">
+              Investido
+            </CardTitle>
+            <PiggyBank className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+          </CardHeader>
+          <CardContent className="p-4 pt-0 text-center">
+            <div className="text-xl md:text-2xl font-bold text-orange-700 dark:text-orange-300">
+              {formatCurrency(totalInvestido || 0)}
+            </div>
+            <p className="text-xs text-orange-600/60 dark:text-orange-400/60">
+              Total em Aplicações
+            </p>
           </CardContent>
         </Card>
       </div>

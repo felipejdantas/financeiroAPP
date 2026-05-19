@@ -40,6 +40,7 @@ const Investments = () => {
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [isRescueModalOpen, setIsRescueModalOpen] = useState(false);
   const [selectedInvestment, setSelectedInvestment] = useState<Investment | null>(null);
+  const [isGlobalRescue, setIsGlobalRescue] = useState(false);
   const [amount, setAmount] = useState("");
   const [tipo, setTipo] = useState("");
   const [descricao, setDescricao] = useState("");
@@ -241,6 +242,20 @@ const Investments = () => {
               </div>
             </DialogContent>
           </Dialog>
+
+          <Button 
+            variant="outline" 
+            className="gap-2"
+            disabled={!investments.some(i => i.valor_atual > 0)}
+            onClick={() => {
+              setSelectedInvestment(null);
+              setIsGlobalRescue(true);
+              setIsRescueModalOpen(true);
+            }}
+          >
+            <ArrowDownLeft className="h-4 w-4" />
+            Resgatar para o Saldo
+          </Button>
         </div>
       </div>
 
@@ -325,6 +340,7 @@ const Investments = () => {
                             className="gap-1"
                             onClick={() => {
                               setSelectedInvestment(inv);
+                              setIsGlobalRescue(false);
                               setIsRescueModalOpen(true);
                             }}
                           >
@@ -351,17 +367,60 @@ const Investments = () => {
       </Card>
 
       {/* Rescue Modal */}
-      <Dialog open={isRescueModalOpen} onOpenChange={setIsRescueModalOpen}>
+      <Dialog open={isRescueModalOpen} onOpenChange={(open) => {
+        setIsRescueModalOpen(open);
+        if (!open) {
+          setSelectedInvestment(null);
+          setIsGlobalRescue(false);
+          setAmount("");
+        }
+      }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Resgatar de {selectedInvestment?.tipo}</DialogTitle>
+            <DialogTitle>
+              {selectedInvestment ? `Resgatar de ${selectedInvestment.tipo}` : "Resgatar Investimento"}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="p-3 bg-muted rounded-md text-sm">
-              Saldo disponível: <span className="font-bold text-primary">
-                {selectedInvestment?.valor_atual.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-              </span>
-            </div>
+            {isGlobalRescue ? (
+              <div className="space-y-2">
+                <Label>Escolha o Investimento</Label>
+                <Select
+                  value={selectedInvestment?.id.toString() || ""}
+                  onValueChange={(val) => {
+                    const inv = investments.find(i => i.id.toString() === val);
+                    setSelectedInvestment(inv || null);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o investimento" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {investments
+                      .filter(i => i.valor_atual > 0)
+                      .map(i => (
+                        <SelectItem key={i.id} value={i.id.toString()}>
+                          {i.tipo} ({i.valor_atual.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})
+                        </SelectItem>
+                      ))
+                    }
+                  </SelectContent>
+                </Select>
+                {selectedInvestment && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Saldo disponível: <span className="font-semibold text-primary">{selectedInvestment.valor_atual.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                  </p>
+                )}
+              </div>
+            ) : (
+              selectedInvestment && (
+                <div className="p-3 bg-muted rounded-md text-sm">
+                  Saldo disponível: <span className="font-bold text-primary">
+                    {selectedInvestment.valor_atual.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  </span>
+                </div>
+              )
+            )}
             <div className="space-y-2">
               <Label>Valor do Resgate</Label>
               <Input 
@@ -371,7 +430,13 @@ const Investments = () => {
                 onChange={(e) => setAmount(e.target.value)} 
               />
             </div>
-            <Button className="w-full" onClick={handleRescue}>Confirmar Resgate</Button>
+            <Button 
+              className="w-full" 
+              onClick={handleRescue}
+              disabled={!selectedInvestment || !amount}
+            >
+              Confirmar Resgate
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

@@ -69,6 +69,7 @@ const Dashboard = () => {
   const [activeSummaryFilter, setActiveSummaryFilter] = useState<{ type: string; value?: string } | null>(null);
   const [categoryEmojis, setCategoryEmojis] = useState<Record<string, string>>({});
   const [categoriasDisponiveis, setCategoriasDisponiveis] = useState<string[]>([]);
+  const [totalInvestido, setTotalInvestido] = useState(0);
 
   const handleSummaryFilterChange = (type: string, value?: string) => {
     if (type === "total") {
@@ -123,6 +124,22 @@ const Dashboard = () => {
       setReceitas(data || []);
     } catch (error) {
       console.error("Erro ao carregar receitas:", error);
+    }
+  };
+
+  const fetchInvestimentos = async () => {
+    if (!userId) return;
+    try {
+      const { data, error } = await supabase
+        .from("investimentos" as any)
+        .select("valor_atual")
+        .eq("user_id", userId);
+
+      if (error) throw error;
+      const total = (data || []).reduce((sum: number, inv: any) => sum + Number(inv.valor_atual || 0), 0);
+      setTotalInvestido(total);
+    } catch (error) {
+      console.error("Erro ao carregar investimentos:", error);
     }
   };
 
@@ -334,6 +351,7 @@ const Dashboard = () => {
     if (userId) {
       fetchDespesas();
       fetchReceitas();
+      fetchInvestimentos();
       fetchPeriodosMensais();
       fetchCategoryEmojis();
       fetchCategorias();
@@ -948,6 +966,7 @@ const Dashboard = () => {
           activeFilter={activeSummaryFilter}
           totalReceita={totalReceita}
           saldoAcumulado={saldoAcumulado}
+          totalInvestido={totalInvestido}
         />
 
 
