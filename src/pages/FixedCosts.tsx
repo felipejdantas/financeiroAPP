@@ -11,6 +11,17 @@ import { useToast } from "@/hooks/use-toast";
 import { format, isSameMonth, parseISO, parse } from "date-fns";
 import { cn } from "@/lib/utils";
 
+const formatMonth = (monthStr: string) => {
+    // monthStr is "yyyy-MM"
+    const [year, month] = monthStr.split("-");
+    const monthNames = [
+        "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
+        "Jul", "Ago", "Set", "Out", "Nov", "Dez"
+    ];
+    const monthIdx = parseInt(month, 10) - 1;
+    return `${monthNames[monthIdx]}/${year.substring(2)}`;
+};
+
 interface FixedCost {
     responsavel?: string;
     id: number;
@@ -35,6 +46,7 @@ export const FixedCosts = () => {
     const [categorias, setCategorias] = useState<string[]>([]);
     const [responsaveis, setResponsaveis] = useState<string[]>([]);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [paidMonthsMap, setPaidMonthsMap] = useState<Record<number, string[]>>({});
     const { toast } = useToast();
 
     // UI States for "New Responsible" input
@@ -77,7 +89,65 @@ export const FixedCosts = () => {
                 .order("due_day");
 
             if (error) throw error;
-            setCosts((data as any) || []);
+            const costsList = (data as any) || [];
+            setCosts(costsList);
+
+            if (costsList.length > 0) {
+                const costIds = costsList.map((c: any) => c.id);
+
+                // Buscar lançamentos de cartão
+                const { data: cartaoData } = await supabase
+                    .from("Financeiro Cartão" as any)
+                    .select("fixed_cost_id, Data, status, Descrição")
+                    .in("fixed_cost_id", costIds);
+
+                // Buscar lançamentos de débito/pix/dinheiro
+                const { data: debitoData } = await supabase
+                    .from("Financeiro Debito" as any)
+                    .select("fixed_cost_id, Data, status, Descrição")
+                    .in("fixed_cost_id", costIds);
+
+                const allExpenses = [...(cartaoData || []), ...(debitoData || [])];
+                const paidExpenses = allExpenses.filter((exp: any) => exp.status !== 'pendente');
+
+                const map: Record<number, string[]> = {};
+                costsList.forEach((c: any) => {
+                    map[c.id] = [];
+                });
+
+                paidExpenses.forEach((exp: any) => {
+                    const costId = exp.fixed_cost_id;
+                    if (!costId) return;
+
+                    let monthStr = "";
+                    const desc = exp.Descrição || "";
+
+                    const refMatchObj = desc.match(/\(Ref:\s*(\d{2})\/(\d{4})\)/);
+                    if (refMatchObj && refMatchObj[1] && refMatchObj[2]) {
+                        monthStr = `${refMatchObj[2]}-${refMatchObj[1]}`;
+                    } else {
+                        const refMatchObj2 = desc.match(/\(Ref:\s*(\d{4})-(\d{2})\)/);
+                        if (refMatchObj2 && refMatchObj2[1] && refMatchObj2[2]) {
+                            monthStr = `${refMatchObj2[1]}-${refMatchObj2[2]}`;
+                        } else {
+                            const dateParts = (exp.Data || "").split("/");
+                            if (dateParts.length === 3) {
+                                monthStr = `${dateParts[2]}-${dateParts[1]}`;
+                            }
+                        }
+                    }
+
+                    if (monthStr && !map[costId].includes(monthStr)) {
+                        map[costId].push(monthStr);
+                    }
+                });
+
+                Object.keys(map).forEach((key: any) => {
+                    map[key].sort((a, b) => a.localeCompare(b));
+                });
+
+                setPaidMonthsMap(map);
+            }
         } catch (error) {
             console.error("Error fetching fixed costs:", error);
         } finally {
@@ -409,9 +479,12 @@ export const FixedCosts = () => {
                 }
             }
 
-            const description = pendingItemToDelete
-                ? (pendingItemToDelete as any).Descrição // Mantém descrição original (ex: com contagem de parcelas)
-                : `${selectedCost.title} (${payData.referenceMonth})`; // Valor default
+            let baseDesc = selectedCost.title;
+            if (pendingItemToDelete && (pendingItemToDelete as any).Descrição) {
+                baseDesc = (pendingItemToDelete as any).Descrição;
+            }
+            baseDesc = baseDesc.replace(/\s*\(Ref:\s*\d{2}\/\d{4}\)/g, "").replace(/\s*\(Ref:\s*\d{4}-\d{2}\)/g, "");
+            const finalDescription = `${baseDesc} (Ref: ${monthStr})`;
 
             const newExpense = {
                 user_id: user.id,
@@ -419,7 +492,7 @@ export const FixedCosts = () => {
                 Tipo: payData.method,
                 Categoria: selectedCost.category,
                 Parcelas: selectedCost.total_cycles ? `${1}/${selectedCost.total_cycles}` : "1/1",
-                Descrição: selectedCost.title, // Use title here, simpler
+                Descrição: finalDescription, // Salva descrição contendo a referência da competência
                 Data: format(parseISO(payData.date), "dd/MM/yyyy"),
                 valor: parseFloat(payData.amount),
                 created_at: new Date().toISOString(),
@@ -493,48 +566,27 @@ export const FixedCosts = () => {
 
     const getStatus = (cost: FixedCost) => {
         const today = new Date();
-        const currentDay = today.getDate();
-        const dueDay = cost.due_day;
-
-        // Check if paid in current month (COMPETENCE PREFERRED)
-        let isPaidThisMonth = false;
-
-        if (cost.last_paid_competence) {
-            isPaidThisMonth = isSameMonth(parseISO(cost.last_paid_competence), today);
-        } else if (cost.last_paid_date) {
-            isPaidThisMonth = isSameMonth(parseISO(cost.last_paid_date), today);
-        }
+        const currentMonthStr = format(today, "yyyy-MM");
+        
+        // Verifica se a competência do mês atual já foi paga
+        const paidMonths = paidMonthsMap[cost.id] || [];
+        const isPaidThisMonth = paidMonths.includes(currentMonthStr);
 
         if (isPaidThisMonth) return {
             status: "paid",
             label: "Pago",
-            badgeClass: "bg-green-500/10 text-green-500",
+            badgeClass: "bg-green-500/10 text-green-500 border border-green-500/20",
             borderClass: "border-l-4 border-l-green-500",
-            cardClass: ""
+            cardClass: "bg-green-50/10 dark:bg-green-950/5"
         };
 
-        if (currentDay > dueDay) return {
-            status: "overdue",
-            label: "Atrasado",
-            badgeClass: "bg-red-600 text-white shadow-sm", // Solid red badge
-            borderClass: "border-2 border-red-600", // Full border
-            cardClass: "shadow-md shadow-red-100 dark:shadow-red-900/20 bg-red-50/30 dark:bg-red-900/10" // Red tint and shadow
-        };
-
-        if (dueDay - currentDay <= 3 && dueDay - currentDay >= 0) return {
-            status: "upcoming",
-            label: "Vence em breve",
-            badgeClass: "bg-orange-500/10 text-orange-500",
-            borderClass: "border-l-4 border-l-orange-500",
-            cardClass: ""
-        };
-
+        // Quando virar o mês e não estiver pago, fica vermelho (Pendente)
         return {
-            status: "pending",
+            status: "unpaid",
             label: "Pendente",
-            badgeClass: "bg-secondary text-muted-foreground",
-            borderClass: "border-l-4 border-l-primary/50",
-            cardClass: ""
+            badgeClass: "bg-red-600 text-white shadow-sm", // Badge vermelho sólido
+            borderClass: "border-2 border-red-600", // Borda inteira vermelha
+            cardClass: "shadow-md shadow-red-100 dark:shadow-red-900/20 bg-red-50/30 dark:bg-red-900/10" // Fundo avermelhado
         };
     };
 
@@ -579,6 +631,10 @@ export const FixedCosts = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {costs.map((cost) => {
                         const status = getStatus(cost);
+                        const costPaidMonths = paidMonthsMap[cost.id] || [];
+                        const displayedMonths = costPaidMonths.slice(-6); // Mostrar os últimos 6 lançamentos
+                        const hasMoreMonths = costPaidMonths.length > 6;
+
                         return (
                             <Card key={cost.id} className={cn(
                                 "hover:shadow-lg transition-all relative overflow-hidden group",
@@ -613,6 +669,30 @@ export const FixedCosts = () => {
                                                     Limite: {cost.total_cycles} parcelas
                                                 </div>
                                             )}
+
+                                            {/* Exibição dos meses lançados para evitar duplicidade */}
+                                            <div className="mt-3 text-xs">
+                                                <span className="font-semibold text-muted-foreground">Meses lançados:</span>
+                                                {costPaidMonths.length > 0 ? (
+                                                    <div className="flex flex-wrap gap-1 mt-1">
+                                                        {displayedMonths.map((m) => (
+                                                            <span
+                                                                key={m}
+                                                                className="px-2 py-0.5 rounded text-[10px] font-medium bg-green-100 dark:bg-green-950/40 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-900/50"
+                                                            >
+                                                                {formatMonth(m)}
+                                                            </span>
+                                                        ))}
+                                                        {hasMoreMonths && (
+                                                            <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-secondary text-muted-foreground border border-secondary">
+                                                                +{costPaidMonths.length - 6}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-muted-foreground italic text-[11px] mt-0.5">Nenhum mês lançado</div>
+                                                )}
+                                            </div>
                                         </div>
 
                                         <div className="flex gap-2">
