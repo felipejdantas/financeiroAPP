@@ -435,6 +435,17 @@ export const FixedCosts = () => {
 
     const handlePay = async () => {
         if (!selectedCost) return;
+
+        // Validação para evitar duplicidade de lançamento para a mesma competência
+        const costPaidMonths = paidMonthsMap[selectedCost.id] || [];
+        if (costPaidMonths.includes(payData.referenceMonth)) {
+            const formattedRefMonth = formatMonth(payData.referenceMonth);
+            const proceed = window.confirm(
+                `Atenção: Já existe um lançamento cadastrado para a despesa "${selectedCost.title}" no mês de referência ${formattedRefMonth}.\n\nDeseja continuar com o cadastro da despesa novamente?`
+            );
+            if (!proceed) return;
+        }
+
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error("No user found");
@@ -890,6 +901,12 @@ export const FixedCosts = () => {
                                     </SelectContent>
                                 </Select>
                                 <p className="text-xs text-muted-foreground">O mês que será marcado como pago.</p>
+                                {selectedCost && (paidMonthsMap[selectedCost.id] || []).includes(payData.referenceMonth) && (
+                                    <div className="flex items-center gap-2 p-2 rounded bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border border-yellow-500/20 text-[11px] font-medium mt-1">
+                                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                                        <span>Atenção: Já existe um lançamento registrado para este mês.</span>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="grid gap-2">
