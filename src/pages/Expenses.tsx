@@ -724,7 +724,7 @@ export default function Expenses() {
                         onMesSelecionado={setMesSelecionado}
                         anoSelecionado={anoSelecionado}
                         setAnoSelecionado={setAnoSelecionado}
-                        categorias={[...new Set(despesas.map(d => (d.Categoria || "").trim()).filter(Boolean))]}
+                        categorias={[...new Set(despesas.map(d => (d.Categoria || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'))}
                         responsaveis={[...new Set(despesas.map(d => (d.Responsavel || "").trim()).filter(Boolean))]}
                         periodosMensais={periodosMensais}
                         userId={userId || ""}
