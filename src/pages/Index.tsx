@@ -650,7 +650,11 @@ const Index = () => {
     });
   };
 
-  const despesasOrdenadas = [...despesasFiltradas].sort((a, b) => (b.id || 0) - (a.id || 0));
+  const despesasOrdenadas = [...despesasFiltradas].sort((a, b) => {
+    const dateA = brToDate(a.Data);
+    const dateB = brToDate(b.Data);
+    return dateB.getTime() - dateA.getTime();
+  });
   const despesasVisiveis = despesasOrdenadas.slice(0, registrosMostrados);
   const temMaisDespesas = despesasOrdenadas.length > registrosMostrados;
 
