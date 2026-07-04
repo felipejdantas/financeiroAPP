@@ -70,6 +70,7 @@ const Dashboard = () => {
   const [categoryEmojis, setCategoryEmojis] = useState<Record<string, string>>({});
   const [categoriasDisponiveis, setCategoriasDisponiveis] = useState<string[]>([]);
   const [totalInvestido, setTotalInvestido] = useState(0);
+  const [saldoAcumulado, setSaldoAcumulado] = useState(0);
   const loadedUserIdRef = useRef<string | null>(null);
 
   const handleSummaryFilterChange = (type: string, value?: string) => {
@@ -492,12 +493,11 @@ const Dashboard = () => {
   const receitasFiltradas = receitas.filter((receita) => isDespesaInPeriod(receita));
   const totalReceita = receitasFiltradas.reduce((sum, r) => sum + Number(r.valor || 0), 0);
 
-  const calcularSaldoAcumulado = () => {
+  // Fallback local, usado apenas se a chamada ao banco (RPC) falhar.
+  const calcularSaldoAcumuladoLocal = () => {
     let dataLimite: Date;
 
     if (mesSelecionado) {
-      // Para o saldo da conta, o ideal é considerar até o último dia do mês civil 
-      // do mês selecionado, em vez da data de corte do cartão.
       dataLimite = new Date(anoSelecionado, mesSelecionado, 0);
     } else {
       if (!dataFim) return 0;
@@ -507,21 +507,15 @@ const Dashboard = () => {
     dataLimite.setHours(23, 59, 59, 999);
     const dataLimiteTime = dataLimite.getTime();
 
-    // Receitas acumuladas até o momento
     const receitasAteMomento = receitas.filter(r => {
-      // Assumindo que r.Data está em 'dd/MM/yyyy' ou 'yyyy-MM-dd'. 
-      // O código usa brToDate e inputToDate. Vamos verificar.
-      // Supabase retorna 'yyyy-MM-dd' se for date type, ou string.
-      // O código existente usa brToDate(despesa.Data). Vamos seguir o padrão.
-      const d = brToDate(r.Data || r.data); // Fallback para lowercase se necessário
+      const d = brToDate(r.Data || r.data);
       return d.getTime() <= dataLimiteTime;
     });
 
-    // Despesas acumuladas (Pix, Débito, Dinheiro) até o momento, excluindo pendentes
     const despesasAteMomento = despesas.filter(d => {
       if (d.status === 'pendente') return false;
 
-      const tipo = d.Tipo; // O tipo na interface é Capitalized
+      const tipo = d.Tipo;
       const aceitos = ["Pix", "Débito", "Dinheiro", "pix", "débito", "dinheiro"];
       if (!aceitos.includes(tipo)) return false;
 
@@ -535,7 +529,31 @@ const Dashboard = () => {
     return totalR - totalD;
   };
 
-  const saldoAcumulado = calcularSaldoAcumulado();
+  // Saldo acumulado agora é calculado no banco (função fin_calcular_saldo_acumulado),
+  // em vez de somar todo o histórico de despesas/receitas no navegador.
+  useEffect(() => {
+    if (!userId) return;
+
+    const dataLimiteStr = mesSelecionado
+      ? format(new Date(anoSelecionado, mesSelecionado, 0), "yyyy-MM-dd")
+      : dataFim;
+
+    if (!dataLimiteStr) {
+      setSaldoAcumulado(0);
+      return;
+    }
+
+    supabase
+      .rpc("fin_calcular_saldo_acumulado", { p_user_id: userId, p_data_limite: dataLimiteStr })
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("Erro ao calcular saldo via banco, usando cálculo local:", error);
+          setSaldoAcumulado(calcularSaldoAcumuladoLocal());
+          return;
+        }
+        setSaldoAcumulado(Number(data) || 0);
+      });
+  }, [userId, mesSelecionado, anoSelecionado, dataFim, despesas, receitas]);
 
   const handleAddOrUpdate = async (despesa: Omit<Despesa, "id"> & { id?: number }, originalTable?: 'cartao' | 'debito') => {
     if (!userId) return;

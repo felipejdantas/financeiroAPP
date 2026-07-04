@@ -9,6 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { RefreshCw } from "lucide-react";
+import { z } from "zod";
+
+const metaSchema = z.coerce.number({ message: "Meta inválida" }).nonnegative("Meta não pode ser negativa");
 
 interface BudgetData {
     categoria: string;
@@ -135,6 +138,13 @@ export default function Planning() {
 
     const handleBudgetChange = async (categoria: string, newMeta: number) => {
         if (!userId) return;
+
+        const parsed = metaSchema.safeParse(newMeta);
+        if (!parsed.success) {
+            toast({ title: "Meta inválida", description: parsed.error.issues[0]?.message, variant: "destructive" });
+            return;
+        }
+        newMeta = parsed.data;
 
         try {
             // Update all 12 months with the same budget

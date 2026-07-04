@@ -10,6 +10,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format, isSameMonth, parseISO, parse } from "date-fns";
 import { cn } from "@/lib/utils";
+import { z } from "zod";
+
+const fixedCostSchema = z.object({
+    title: z.string().trim().min(1, "Título é obrigatório"),
+    amount: z.coerce.number({ message: "Valor inválido" }).positive("Valor deve ser maior que zero"),
+    category: z.string().trim().min(1, "Categoria é obrigatória"),
+    due_day: z.coerce.number({ message: "Dia de vencimento inválido" }).int().min(1, "Dia deve ser entre 1 e 31").max(31, "Dia deve ser entre 1 e 31"),
+});
+
+const payAmountSchema = z.coerce.number({ message: "Valor inválido" }).positive("Valor deve ser maior que zero");
 
 const formatMonth = (monthStr: string) => {
     // monthStr is "yyyy-MM"
@@ -203,16 +213,27 @@ export const FixedCosts = () => {
     }, []);
 
     const handleSave = async () => {
+        const parsed = fixedCostSchema.safeParse({
+            title: formData.title,
+            amount: formData.amount,
+            category: formData.category,
+            due_day: formData.due_day,
+        });
+        if (!parsed.success) {
+            toast({ title: "Dados inválidos", description: parsed.error.issues[0]?.message, variant: "destructive" });
+            return;
+        }
+
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error("No user found");
 
             const payload = {
                 user_id: user.id,
-                title: formData.title,
-                amount: parseFloat(formData.amount),
-                category: formData.category,
-                due_day: parseInt(formData.due_day),
+                title: parsed.data.title,
+                amount: parsed.data.amount,
+                category: parsed.data.category,
+                due_day: parsed.data.due_day,
                 description: formData.description,
                 auto_generate: false, // BYPASS DB TRIGGER enforced
                 payment_method: formData.payment_method,
@@ -436,6 +457,12 @@ export const FixedCosts = () => {
     const handlePay = async () => {
         if (!selectedCost) return;
 
+        const parsedAmount = payAmountSchema.safeParse(payData.amount);
+        if (!parsedAmount.success) {
+            toast({ title: "Valor inválido", description: parsedAmount.error.issues[0]?.message, variant: "destructive" });
+            return;
+        }
+
         // Validação para evitar duplicidade de lançamento para a mesma competência
         const costPaidMonths = paidMonthsMap[selectedCost.id] || [];
         if (costPaidMonths.includes(payData.referenceMonth)) {
@@ -505,7 +532,7 @@ export const FixedCosts = () => {
                 Parcelas: selectedCost.total_cycles ? `${1}/${selectedCost.total_cycles}` : "1/1",
                 Descrição: finalDescription, // Salva descrição contendo a referência da competência
                 Data: format(parseISO(payData.date), "dd/MM/yyyy"),
-                valor: parseFloat(payData.amount),
+                valor: parsedAmount.data,
                 created_at: new Date().toISOString(),
                 fixed_cost_id: selectedCost.id
             };
@@ -534,7 +561,7 @@ export const FixedCosts = () => {
                 .from("fixed_costs" as any)
                 .update({
                     last_paid_at: new Date().toISOString(),
-                    last_paid_amount: parseFloat(payData.amount),
+                    last_paid_amount: parsedAmount.data,
                     last_paid_competence: competenceDate
                 })
                 .eq("id", selectedCost.id);

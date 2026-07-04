@@ -25,6 +25,14 @@ import { Tag, Plus, Pencil, Trash2, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Categoria } from "@/types/categoria";
+import { z } from "zod";
+
+const categoriaSchema = z.object({
+    nome: z.string().trim().min(1, "Nome é obrigatório").max(60, "Nome muito longo"),
+    cor: z.string().regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, "Cor inválida"),
+    icone: z.string().optional(),
+    emoji: z.string().max(2, "Use no máximo um emoji").optional(),
+});
 
 export default function Categories() {
     const [loading, setLoading] = useState(false);
@@ -135,6 +143,17 @@ export default function Categories() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        const parsed = categoriaSchema.safeParse(formData);
+        if (!parsed.success) {
+            toast({
+                title: "Dados inválidos",
+                description: parsed.error.issues[0]?.message,
+                variant: "destructive",
+            });
+            return;
+        }
+
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;

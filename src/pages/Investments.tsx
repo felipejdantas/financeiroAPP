@@ -21,6 +21,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { format } from "date-fns";
+import { z } from "zod";
+
+const valorSchema = z.coerce.number({ message: "Valor inválido" }).positive("Valor deve ser maior que zero");
 
 interface Investment {
   id: number;
@@ -80,9 +83,15 @@ const Investments = () => {
   const handleTransfer = async () => {
     if (!userId || !amount || !tipo) return;
 
+    const parsed = valorSchema.safeParse(amount);
+    if (!parsed.success) {
+      toast({ title: "Valor inválido", description: parsed.error.issues[0]?.message, variant: "destructive" });
+      return;
+    }
+
     try {
-      const val = parseFloat(amount);
-      
+      const val = parsed.data;
+
       // 1. Procurar se já existe investimento desse tipo
       const existing = investments.find(i => i.tipo === tipo);
       
@@ -134,8 +143,14 @@ const Investments = () => {
   const handleRescue = async () => {
     if (!userId || !amount || !selectedInvestment) return;
 
+    const parsed = valorSchema.safeParse(amount);
+    if (!parsed.success) {
+      toast({ title: "Valor inválido", description: parsed.error.issues[0]?.message, variant: "destructive" });
+      return;
+    }
+
     try {
-      const val = parseFloat(amount);
+      const val = parsed.data;
       if (val > selectedInvestment.valor_atual) {
         toast({ title: "Valor insuficiente", description: "O valor de resgate é maior que o saldo do investimento.", variant: "destructive" });
         return;
