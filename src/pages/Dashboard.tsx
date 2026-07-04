@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Despesa } from "@/types/despesa";
@@ -70,6 +70,7 @@ const Dashboard = () => {
   const [categoryEmojis, setCategoryEmojis] = useState<Record<string, string>>({});
   const [categoriasDisponiveis, setCategoriasDisponiveis] = useState<string[]>([]);
   const [totalInvestido, setTotalInvestido] = useState(0);
+  const loadedUserIdRef = useRef<string | null>(null);
 
   const handleSummaryFilterChange = (type: string, value?: string) => {
     if (type === "total") {
@@ -326,22 +327,23 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const handleSession = (session: { user: { id: string } } | null) => {
       if (session?.user) {
         setUserId(session.user.id);
-        loadUserProfile(session.user.id);
+        if (loadedUserIdRef.current !== session.user.id) {
+          loadedUserIdRef.current = session.user.id;
+          loadUserProfile(session.user.id);
+        }
       } else {
+        loadedUserIdRef.current = null;
         navigate('/auth');
       }
-    });
+    };
+
+    supabase.auth.getSession().then(({ data: { session } }) => handleSession(session));
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session?.user) {
-        setUserId(session.user.id);
-        loadUserProfile(session.user.id);
-      } else {
-        navigate('/auth');
-      }
+      handleSession(session);
     });
 
     return () => subscription.unsubscribe();

@@ -22,6 +22,7 @@ export default function Revenue() {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [receitaToDelete, setReceitaToDelete] = useState<number | null>(null);
     const [categoryEmojis, setCategoryEmojis] = useState<Record<string, string>>({});
+    const [registrosMostrados, setRegistrosMostrados] = useState(10);
 
     // Derived state for dropdowns
     const [categoriasDisponiveis, setCategoriasDisponiveis] = useState<string[]>([]);
@@ -231,6 +232,9 @@ export default function Revenue() {
         }
     };
 
+    const receitasVisiveis = receitas.slice(0, registrosMostrados);
+    const temMaisReceitas = receitas.length > registrosMostrados;
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 p-2 md:p-8 animate-fade-in">
             <div className="max-w-7xl mx-auto space-y-6">
@@ -253,11 +257,26 @@ export default function Revenue() {
                 </div>
 
                 <RevenueTable
-                    receitas={receitas}
+                    receitas={receitasVisiveis}
                     onEdit={(r) => { setEditingReceita(r); setFormOpen(true); }}
                     onDelete={(id) => { setReceitaToDelete(id); setDeleteDialogOpen(true); }}
                     categoryEmojis={categoryEmojis}
                 />
+
+                {temMaisReceitas && (
+                    <div className="flex justify-center mt-4">
+                        <Button
+                            variant="outline"
+                            onClick={() => setRegistrosMostrados(prev => prev + 10)}
+                            className="min-w-[200px]"
+                        >
+                            Mostrar Mais 10 Registros
+                            <span className="ml-2 text-muted-foreground">
+                                ({receitasVisiveis.length} de {receitas.length})
+                            </span>
+                        </Button>
+                    </div>
+                )}
 
                 {formOpen && (
                     <RevenueForm
