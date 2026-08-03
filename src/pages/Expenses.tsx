@@ -49,6 +49,7 @@ export default function Expenses() {
 
     const [responsavelFilter, setResponsavelFilter] = useState<string[]>([]);
     const [tipoFilter, setTipoFilter] = useState<string[]>([]);
+    const [bancoCartaoFilter, setBancoCartaoFilter] = useState<string[]>([]);
     const [categoriaFilter, setCategoriaFilter] = useState<string[]>([]);
     const [parcelaFilter, setParcelaFilter] = useState<string[]>([]);
     const [dataInicio, setDataInicio] = useState("");
@@ -218,6 +219,10 @@ export default function Expenses() {
                 return tipo === tfLower;
             });
             if (!matchesFilter) return false;
+        }
+
+        if (bancoCartaoFilter.length > 0 && !bancoCartaoFilter.includes(despesa.banco_cartao || "")) {
+            return false;
         }
 
         if (categoriaFilter.length > 0 && !categoriaFilter.includes((despesa.Categoria || "").trim())) {
@@ -505,6 +510,7 @@ export default function Expenses() {
     const limparFiltros = () => {
         setResponsavelFilter([]);
         setTipoFilter([]);
+        setBancoCartaoFilter([]);
         setCategoriaFilter([]);
         setParcelaFilter([]);
         setDataInicio("");
@@ -720,6 +726,8 @@ export default function Expenses() {
                         setResponsavelFilter={setResponsavelFilter}
                         tipoFilter={tipoFilter}
                         setTipoFilter={setTipoFilter}
+                        bancoCartaoFilter={bancoCartaoFilter}
+                        setBancoCartaoFilter={setBancoCartaoFilter}
                         categoriaFilter={categoriaFilter}
                         setCategoriaFilter={setCategoriaFilter}
                         parcelaFilter={parcelaFilter}

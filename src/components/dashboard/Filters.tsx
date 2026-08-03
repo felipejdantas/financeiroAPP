@@ -14,6 +14,8 @@ interface FiltersProps {
   setResponsavelFilter: (value: string[]) => void;
   tipoFilter: string[];
   setTipoFilter: (value: string[]) => void;
+  bancoCartaoFilter: string[];
+  setBancoCartaoFilter: (value: string[]) => void;
   categoriaFilter: string[];
   setCategoriaFilter: (value: string[]) => void;
   parcelaFilter: string[];
@@ -37,6 +39,8 @@ export const Filters = ({
   setResponsavelFilter,
   tipoFilter,
   setTipoFilter,
+  bancoCartaoFilter,
+  setBancoCartaoFilter,
   categoriaFilter,
   setCategoriaFilter,
   parcelaFilter,
@@ -328,6 +332,61 @@ export const Filters = ({
                       className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                     >
                       Dinheiro
+                    </label>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="cartao" className="text-card-foreground flex items-center gap-1">
+              <CreditCard className="h-4 w-4" />
+              Cartão
+            </Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start bg-secondary border-border text-card-foreground"
+                >
+                  {bancoCartaoFilter.length === 0
+                    ? "Selecionar cartão"
+                    : `${bancoCartaoFilter.length} selecionado(s)`}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 bg-popover border-border">
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="cartao-santander"
+                      checked={bancoCartaoFilter.includes("Santander")}
+                      onCheckedChange={(checked) => {
+                        if (checked) setBancoCartaoFilter([...bancoCartaoFilter, "Santander"]);
+                        else setBancoCartaoFilter(bancoCartaoFilter.filter((b) => b !== "Santander"));
+                      }}
+                    />
+                    <label
+                      htmlFor="cartao-santander"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                    >
+                      Santander
+                    </label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="cartao-inter"
+                      checked={bancoCartaoFilter.includes("Inter")}
+                      onCheckedChange={(checked) => {
+                        if (checked) setBancoCartaoFilter([...bancoCartaoFilter, "Inter"]);
+                        else setBancoCartaoFilter(bancoCartaoFilter.filter((b) => b !== "Inter"));
+                      }}
+                    />
+                    <label
+                      htmlFor="cartao-inter"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                    >
+                      Inter
                     </label>
                   </div>
                 </div>
