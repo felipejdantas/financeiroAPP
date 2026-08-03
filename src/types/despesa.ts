@@ -11,7 +11,10 @@ export interface Despesa {
   fixed_cost_id?: number;
   status?: 'pendente' | 'pago';
   table?: 'cartao' | 'debito';
+  banco_cartao?: BancoCartao;
 }
+
+export type BancoCartao = 'Santander' | 'Inter';
 
 export type ResponsavelFilter = 'todos' | string;
 export type TipoFilter = 'todos' | 'Crédito' | 'Débito' | 'Pix' | 'Dinheiro';

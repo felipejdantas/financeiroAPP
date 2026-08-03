@@ -76,6 +76,7 @@ export type Database = {
       }
       "Financeiro Cartão": {
         Row: {
+          banco_cartao: string
           Categoria: string | null
           Data: string | null
           Descrição: string | null
@@ -87,6 +88,7 @@ export type Database = {
           valor: number | null
         }
         Insert: {
+          banco_cartao?: string
           Categoria?: string | null
           Data?: string | null
           Descrição?: string | null
@@ -98,6 +100,7 @@ export type Database = {
           valor?: number | null
         }
         Update: {
+          banco_cartao?: string
           Categoria?: string | null
           Data?: string | null
           Descrição?: string | null

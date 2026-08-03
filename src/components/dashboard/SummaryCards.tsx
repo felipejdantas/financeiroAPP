@@ -69,6 +69,12 @@ export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange,
     return { nome: resp, total };
   });
 
+  // Separar Cartão de Crédito por banco (Santander / Inter), para não confundir as duas faturas
+  const despesasSantander = despesasCredito.filter((d) => (d.banco_cartao || "Santander") === "Santander");
+  const despesasInter = despesasCredito.filter((d) => d.banco_cartao === "Inter");
+  const totalSantander = despesasSantander.reduce((sum, d) => sum + d.valor, 0);
+  const totalInter = despesasInter.reduce((sum, d) => sum + d.valor, 0);
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
@@ -186,23 +192,64 @@ export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange,
         </Card>
       </div>
 
-      {/* Linha 3: Cartão de Crédito e Responsáveis (Cartão) */}
+      {/* Linha 3: Cartão de Crédito (por banco) */}
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-        {/* Cartão de Crédito */}
+        {/* Santander */}
+        <Card
+          className={`${getCardStyle("credito_banco", "Santander")} h-full border-l-4 border-l-red-600`}
+          onClick={() => onFilterChange("credito_banco", "Santander")}
+        >
+          <CardHeader className="flex flex-row items-center justify-center gap-2 space-y-0 p-6">
+            <CardTitle className="text-base md:text-lg font-medium text-card-foreground truncate">
+              Cartão Santander
+            </CardTitle>
+            <CreditCard className="h-5 w-5 text-red-600" />
+          </CardHeader>
+          <CardContent className="p-6 pt-0 text-center">
+            <div className="text-2xl md:text-3xl font-bold text-card-foreground truncate">{formatCurrency(totalSantander)}</div>
+            <p className="text-xs md:text-sm text-muted-foreground truncate mt-2">
+              Fatura
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Inter */}
+        <Card
+          className={`${getCardStyle("credito_banco", "Inter")} h-full border-l-4 border-l-orange-500`}
+          onClick={() => onFilterChange("credito_banco", "Inter")}
+        >
+          <CardHeader className="flex flex-row items-center justify-center gap-2 space-y-0 p-6">
+            <CardTitle className="text-base md:text-lg font-medium text-card-foreground truncate">
+              Cartão Inter
+            </CardTitle>
+            <CreditCard className="h-5 w-5 text-orange-500" />
+          </CardHeader>
+          <CardContent className="p-6 pt-0 text-center">
+            <div className="text-2xl md:text-3xl font-bold text-card-foreground truncate">{formatCurrency(totalInter)}</div>
+            <p className="text-xs md:text-sm text-muted-foreground truncate mt-2">
+              Fatura
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Linha 3b: Total do Cartão e Responsáveis (Cartão) */}
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+        {/* Total Cartão de Crédito (Santander + Inter) */}
         <Card
           className={`${getCardStyle("credito")} h-full border-l-4 border-l-blue-500`}
           onClick={() => onFilterChange("credito")}
         >
           <CardHeader className="flex flex-row items-center justify-center gap-2 space-y-0 p-6">
             <CardTitle className="text-base md:text-lg font-medium text-card-foreground truncate">
-              Cartão de Crédito
+              Cartão de Crédito (Total)
             </CardTitle>
             <CreditCard className="h-5 w-5 text-blue-500" />
           </CardHeader>
           <CardContent className="p-6 pt-0 text-center flex flex-col justify-center h-[calc(100%-80px)]">
             <div className="text-2xl md:text-3xl font-bold text-card-foreground truncate">{formatCurrency(totalCredito)}</div>
             <p className="text-xs md:text-sm text-muted-foreground truncate mt-2">
-              Faturas
+              Santander + Inter
             </p>
           </CardContent>
         </Card>

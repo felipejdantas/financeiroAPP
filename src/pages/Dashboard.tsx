@@ -585,6 +585,10 @@ const Dashboard = () => {
           status: despesa.status === 'pendente' ? null : despesa.status
         };
 
+        if (tableName === "Financeiro Cartão") {
+          updatePayload.banco_cartao = despesa.banco_cartao || "Santander";
+        }
+
         if (oldTableName !== tableName) {
           // Migração de registro - Inserir novo
           const { error: insertError } = await supabase
@@ -635,7 +639,8 @@ const Dashboard = () => {
               user_id: userId,
               created_at: despesa.created_at,
               fixed_cost_id: despesa.fixed_cost_id,
-              status: despesa.status
+              status: despesa.status,
+              ...(tableName === "Financeiro Cartão" ? { banco_cartao: despesa.banco_cartao || "Santander" } : {})
             });
           }
 
@@ -659,7 +664,8 @@ const Dashboard = () => {
               user_id: userId,
               created_at: despesa.created_at,
               fixed_cost_id: despesa.fixed_cost_id,
-              status: despesa.status
+              status: despesa.status,
+              ...(tableName === "Financeiro Cartão" ? { banco_cartao: despesa.banco_cartao || "Santander" } : {})
             }]);
 
           if (error) throw error;
@@ -694,7 +700,8 @@ const Dashboard = () => {
           Descrição: despesa["Descrição"],
           Data: despesa.Data,
           valor: despesa.valor,
-          user_id: userId
+          user_id: userId,
+          ...(tableName === "Financeiro Cartão" ? { banco_cartao: despesa.banco_cartao || "Santander" } : {})
         }]);
 
       if (error) throw error;
@@ -795,6 +802,8 @@ const Dashboard = () => {
       switch (activeSummaryFilter.type) {
         case "credito":
           return tipo === "crédito" || tipo === "credito";
+        case "credito_banco":
+          return (tipo === "crédito" || tipo === "credito") && (despesa.banco_cartao || "Santander") === activeSummaryFilter.value;
         case "responsavel_credito":
           return (despesa.Responsavel || "").trim() === activeSummaryFilter.value && (tipo === "crédito" || tipo === "credito");
         case "outros":

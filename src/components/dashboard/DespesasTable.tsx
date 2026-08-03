@@ -292,7 +292,12 @@ export const DespesasTable = ({ despesas, onEdit, onDelete, onDuplicate, onBulkE
                       </div>
                     </TableCell>
                     <TableCell className="text-foreground text-[10px] md:text-xs hidden sm:table-cell">{despesa.Responsavel}</TableCell>
-                    <TableCell className="text-foreground text-[10px] md:text-xs hidden md:table-cell">{despesa.Tipo}</TableCell>
+                    <TableCell className="text-foreground text-[10px] md:text-xs hidden md:table-cell">
+                      {despesa.Tipo}
+                      {(despesa.Tipo || "").trim().toLowerCase().startsWith("cr") && despesa.banco_cartao && (
+                        <span className="text-muted-foreground"> · {despesa.banco_cartao}</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-foreground text-[10px] md:text-xs hidden lg:table-cell">
                       {getCategoryEmoji(despesa.Categoria)} {despesa.Categoria}
                     </TableCell>

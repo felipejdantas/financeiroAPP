@@ -313,6 +313,10 @@ export default function Expenses() {
                     status: despesa.status === 'pendente' ? null : despesa.status
                 };
 
+                if (tableName === "Financeiro Cartão") {
+                    updatePayload.banco_cartao = despesa.banco_cartao || "Santander";
+                }
+
                 if (oldTableName !== tableName) {
                     const { error: insertError } = await supabase
                         .from(tableName as any)
@@ -360,7 +364,8 @@ export default function Expenses() {
                             user_id: userId,
                             created_at: despesa.created_at,
                             fixed_cost_id: despesa.fixed_cost_id,
-                            status: despesa.status
+                            status: despesa.status,
+                            ...(tableName === "Financeiro Cartão" ? { banco_cartao: despesa.banco_cartao || "Santander" } : {})
                         });
                     }
 
@@ -384,7 +389,8 @@ export default function Expenses() {
                             user_id: userId,
                             created_at: despesa.created_at,
                             fixed_cost_id: despesa.fixed_cost_id,
-                            status: despesa.status
+                            status: despesa.status,
+                            ...(tableName === "Financeiro Cartão" ? { banco_cartao: despesa.banco_cartao || "Santander" } : {})
                         }]);
 
                     if (error) throw error;
@@ -420,7 +426,8 @@ export default function Expenses() {
                     Descrição: despesa["Descrição"],
                     Data: despesa.Data,
                     valor: despesa.valor,
-                    user_id: userId
+                    user_id: userId,
+                    ...(tableName === "Financeiro Cartão" ? { banco_cartao: despesa.banco_cartao || "Santander" } : {})
                 }]);
 
             if (error) throw error;

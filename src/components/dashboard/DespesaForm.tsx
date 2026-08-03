@@ -19,6 +19,10 @@ const despesaSchema = z.object({
   valor: z.number().positive("Valor deve ser positivo"),
   Categoria: z.string().min(1, "Categoria é obrigatória").max(100, "Categoria muito longa"),
   created_at: z.string().optional(),
+  banco_cartao: z.enum(["Santander", "Inter"]).optional(),
+}).refine((data) => data.Tipo !== "Crédito" || !!data.banco_cartao, {
+  message: "Selecione o cartão",
+  path: ["banco_cartao"],
 });
 
 type DespesaFormValues = z.infer<typeof despesaSchema>;
@@ -50,8 +54,11 @@ export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias,
       valor: 0,
       Categoria: "",
       created_at: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+      banco_cartao: "Santander",
     },
   });
+
+  const tipoSelecionado = form.watch("Tipo");
 
   useEffect(() => {
     if (despesa) {
@@ -64,6 +71,7 @@ export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias,
         valor: despesa.valor,
         Categoria: despesa.Categoria,
         created_at: despesa.created_at ? format(new Date(despesa.created_at), "yyyy-MM-dd'T'HH:mm") : format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+        banco_cartao: despesa.banco_cartao || "Santander",
       });
       setShowNewCategoryInput(false);
       setNewCategory("");
@@ -79,6 +87,7 @@ export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias,
         valor: 0,
         Categoria: "",
         created_at: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+        banco_cartao: "Santander",
       });
       setShowNewCategoryInput(false);
       setNewCategory("");
@@ -198,6 +207,30 @@ export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias,
                   </FormItem>
                 )}
               />
+
+              {tipoSelecionado === "Crédito" && (
+                <FormField
+                  control={form.control}
+                  name="banco_cartao"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cartão</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o cartão" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent side="bottom">
+                          <SelectItem value="Santander">Santander</SelectItem>
+                          <SelectItem value="Inter">Inter</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
               <FormField
                 control={form.control}
