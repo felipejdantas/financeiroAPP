@@ -54,6 +54,9 @@ export default function Expenses() {
     const [parcelaFilter, setParcelaFilter] = useState<string[]>([]);
     const [dataInicio, setDataInicio] = useState("");
     const [dataFim, setDataFim] = useState("");
+    // Período do cartão Inter (Santander usa dataInicio/dataFim acima)
+    const [dataInicioInter, setDataInicioInter] = useState("");
+    const [dataFimInter, setDataFimInter] = useState("");
     const [formOpen, setFormOpen] = useState(false);
     const [editingDespesa, setEditingDespesa] = useState<Despesa | null>(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -188,6 +191,21 @@ export default function Expenses() {
         }
     }, [userId]);
 
+    // O período selecionado (via dropdown "Período Mensal") reflete o cartão Santander;
+    // aqui buscamos o período equivalente do Inter para o mesmo mês/ano.
+    useEffect(() => {
+        if (!mesSelecionado) {
+            setDataInicioInter("");
+            setDataFimInter("");
+            return;
+        }
+        const periodoInter = periodosMensais.find(
+            (p: any) => p.mes_referencia === mesSelecionado && p.ano_referencia === anoSelecionado && p.banco_cartao === "Inter"
+        );
+        setDataInicioInter(periodoInter?.data_inicio || "");
+        setDataFimInter(periodoInter?.data_fim || "");
+    }, [mesSelecionado, anoSelecionado, periodosMensais]);
+
     const loadUserProfile = async (uid: string) => {
         const { data: profile } = await supabase
             .from("profiles")
@@ -240,13 +258,18 @@ export default function Expenses() {
         const despesaDate = brToDate(despesa.Data);
 
         if (isCredito) {
-            if (dataInicio) {
-                const dataInicioDate = inputToDate(dataInicio);
+            // Cada cartão tem seu próprio período de faturamento (Santander x Inter)
+            const isInter = despesa.banco_cartao === "Inter";
+            const inicioStr = isInter ? dataInicioInter : dataInicio;
+            const fimStr = isInter ? dataFimInter : dataFim;
+
+            if (inicioStr) {
+                const dataInicioDate = inputToDate(inicioStr);
                 dataInicioDate.setHours(0, 0, 0, 0);
                 if (despesaDate < dataInicioDate) return false;
             }
-            if (dataFim) {
-                const dataFimDate = inputToDate(dataFim);
+            if (fimStr) {
+                const dataFimDate = inputToDate(fimStr);
                 dataFimDate.setHours(23, 59, 59, 999);
                 if (despesaDate > dataFimDate) return false;
             }

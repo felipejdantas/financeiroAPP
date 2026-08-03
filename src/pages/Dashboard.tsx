@@ -57,6 +57,9 @@ const Dashboard = () => {
 
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
+  // Período do cartão Inter (Santander usa dataInicio/dataFim acima)
+  const [dataInicioInter, setDataInicioInter] = useState("");
+  const [dataFimInter, setDataFimInter] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editingDespesa, setEditingDespesa] = useState<Despesa | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -145,17 +148,18 @@ const Dashboard = () => {
     }
   };
 
-  const calcularPeriodoDoMes = async (uid: string, mesRef: number, anoRef?: number): Promise<{ dataInicio: string, dataFim: string }> => {
+  const calcularPeriodoDoMes = async (uid: string, mesRef: number, anoRef?: number, banco: 'Santander' | 'Inter' = 'Santander'): Promise<{ dataInicio: string, dataFim: string }> => {
     try {
       const anoUsar = anoRef || anoSelecionado;
 
-      // Busca o período configurado para o mês e ano especificados
+      // Busca o período configurado para o mês, ano e cartão especificados
       const { data, error } = await supabase
         .from("periodos_mensais_cartao")
         .select("*")
         .eq("user_id", uid)
         .eq("mes_referencia", mesRef)
         .eq("ano_referencia", anoUsar)
+        .eq("banco_cartao", banco)
         .maybeSingle();
 
       if (error && error.code !== "PGRST116") throw error;
@@ -203,17 +207,30 @@ const Dashboard = () => {
     }
   };
 
+  // Busca o período do mês para os dois cartões e aplica nos filtros (Santander em dataInicio/dataFim, Inter em dataInicioInter/dataFimInter)
+  const aplicarPeriodoDoMes = async (uid: string, mesRef: number, anoRef: number) => {
+    const [periodoSantander, periodoInter] = await Promise.all([
+      calcularPeriodoDoMes(uid, mesRef, anoRef, 'Santander'),
+      calcularPeriodoDoMes(uid, mesRef, anoRef, 'Inter'),
+    ]);
+    setDataInicio(periodoSantander.dataInicio);
+    setDataFim(periodoSantander.dataFim);
+    setDataInicioInter(periodoInter.dataInicio);
+    setDataFimInter(periodoInter.dataFim);
+  };
+
   const calcularPeriodoAtualDoCartao = async (uid: string) => {
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
     const anoAtual = hoje.getFullYear();
 
     try {
-      // Busca todos os períodos configurados
+      // Busca os períodos configurados (referência: Santander)
       const { data: periodos, error } = await supabase
         .from("periodos_mensais_cartao")
         .select("*")
         .eq("user_id", uid)
+        .eq("banco_cartao", "Santander")
         .order("mes_referencia");
 
       if (error) throw error;
@@ -277,11 +294,12 @@ const Dashboard = () => {
     const anoAtual = hoje.getFullYear();
 
     try {
-      // Busca todos os períodos configurados
+      // Busca os períodos configurados (referência: Santander, usado só para descobrir "em que mês estamos")
       const { data: periodos, error } = await supabase
         .from("periodos_mensais_cartao")
         .select("*")
         .eq("user_id", uid)
+        .eq("banco_cartao", "Santander")
         .order("mes_referencia");
 
       if (error) throw error;
@@ -299,10 +317,9 @@ const Dashboard = () => {
           const dataFim = new Date(anoAtual, periodo.mes_referencia - 1, periodo.dia_fim);
           dataFim.setHours(23, 59, 59, 999);
 
-          // Se hoje está dentro deste período, aplica nos filtros
+          // Se hoje está dentro deste período, aplica nos filtros (Santander + Inter)
           if (hoje >= dataInicio && hoje <= dataFim) {
-            setDataInicio(dataInicio.toISOString().split('T')[0]);
-            setDataFim(dataFim.toISOString().split('T')[0]);
+            await aplicarPeriodoDoMes(uid, periodo.mes_referencia, anoAtual);
             setMesSelecionado(periodo.mes_referencia);
             return;
           }
@@ -311,18 +328,14 @@ const Dashboard = () => {
 
       // Fallback: usa mês atual completo se nenhum período estiver ativo
       const mesAtual = hoje.getMonth() + 1;
-      const periodo = await calcularPeriodoDoMes(uid, mesAtual);
-      setDataInicio(periodo.dataInicio);
-      setDataFim(periodo.dataFim);
+      await aplicarPeriodoDoMes(uid, mesAtual, anoAtual);
       setMesSelecionado(mesAtual);
 
     } catch (error) {
       console.error("Erro ao aplicar filtros:", error);
       // Fallback: usa mês atual completo
       const mesAtual = hoje.getMonth() + 1;
-      const periodo = await calcularPeriodoDoMes(uid, mesAtual);
-      setDataInicio(periodo.dataInicio);
-      setDataFim(periodo.dataFim);
+      await aplicarPeriodoDoMes(uid, mesAtual, anoAtual);
       setMesSelecionado(mesAtual);
     }
   };
@@ -370,6 +383,7 @@ const Dashboard = () => {
         .from("periodos_mensais_cartao")
         .select("*")
         .eq("user_id", userId)
+        .eq("banco_cartao", "Santander")
         .order("mes_referencia");
 
       if (error) throw error;
@@ -445,13 +459,18 @@ const Dashboard = () => {
     const isCredito = tipoNormalizado === "crédito" || tipoNormalizado === "credito";
 
     if (isCredito) {
-      if (dataInicio) {
-        const dataInicioDate = inputToDate(dataInicio);
+      // Cada cartão tem seu próprio período de faturamento (Santander x Inter)
+      const isInter = despesa.banco_cartao === "Inter";
+      const inicioStr = isInter ? dataInicioInter : dataInicio;
+      const fimStr = isInter ? dataFimInter : dataFim;
+
+      if (inicioStr) {
+        const dataInicioDate = inputToDate(inicioStr);
         dataInicioDate.setHours(0, 0, 0, 0);
         if (despesaDate < dataInicioDate) return false;
       }
-      if (dataFim) {
-        const dataFimDate = inputToDate(dataFim);
+      if (fimStr) {
+        const dataFimDate = inputToDate(fimStr);
         dataFimDate.setHours(23, 59, 59, 999);
         if (despesaDate > dataFimDate) return false;
       }
@@ -767,11 +786,9 @@ const Dashboard = () => {
     if (!userId) return;
 
     const anoUsar = ano || anoSelecionado;
-    const periodo = await calcularPeriodoDoMes(userId, mes, anoUsar);
 
-    // Aplica as datas do período configurado aos filtros principais
-    setDataInicio(periodo.dataInicio);
-    setDataFim(periodo.dataFim);
+    // Aplica as datas do período configurado (Santander e Inter) aos filtros principais
+    await aplicarPeriodoDoMes(userId, mes, anoUsar);
     setMesSelecionado(mes);
     if (ano) setAnoSelecionado(ano);
     setRegistrosMostrados(10);

@@ -169,6 +169,7 @@ export type Database = {
       }
       periodos_mensais_cartao: {
         Row: {
+          banco_cartao: string
           created_at: string | null
           data_fim: string | null
           data_inicio: string | null
@@ -181,6 +182,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          banco_cartao?: string
           created_at?: string | null
           data_fim?: string | null
           data_inicio?: string | null
@@ -193,6 +195,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          banco_cartao?: string
           created_at?: string | null
           data_fim?: string | null
           data_inicio?: string | null

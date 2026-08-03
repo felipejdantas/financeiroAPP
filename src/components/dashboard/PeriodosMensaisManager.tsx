@@ -12,9 +12,11 @@ import {
 } from "@/components/ui/dialog";
 import { Save, Calendar } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import type { BancoCartao } from "@/types/despesa";
 
 interface PeriodoMensal {
   mes_referencia: number;
@@ -45,6 +47,7 @@ const ANOS = [2025, 2026, 2027, 2028];
 export const PeriodosMensaisManager = ({ userId, onUpdate, open, onOpenChange }: PeriodosMensaisManagerProps) => {
   const [periodos, setPeriodos] = useState<PeriodoMensal[]>([]);
   const [anoSelecionado, setAnoSelecionado] = useState(new Date().getFullYear());
+  const [bancoSelecionado, setBancoSelecionado] = useState<BancoCartao>("Santander");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -52,17 +55,18 @@ export const PeriodosMensaisManager = ({ userId, onUpdate, open, onOpenChange }:
     if (open && userId) {
       loadPeriodos();
     }
-  }, [open, userId, anoSelecionado]);
+  }, [open, userId, anoSelecionado, bancoSelecionado]);
 
   const loadPeriodos = async () => {
     setLoading(true);
     try {
-      // Busca períodos do ano selecionado
+      // Busca períodos do ano e cartão selecionados
       const { data, error } = await supabase
         .from("periodos_mensais_cartao")
         .select("*")
         .eq("user_id", userId)
         .eq("ano_referencia", anoSelecionado)
+        .eq("banco_cartao", bancoSelecionado)
         .order("mes_referencia");
 
       if (error) throw error;
@@ -163,12 +167,13 @@ export const PeriodosMensaisManager = ({ userId, onUpdate, open, onOpenChange }:
         }
       }
 
-      // Deletar períodos existentes do usuário para o ano selecionado
+      // Deletar períodos existentes do usuário para o ano e cartão selecionados
       await supabase
         .from("periodos_mensais_cartao")
         .delete()
         .eq("user_id", userId)
-        .eq("ano_referencia", anoSelecionado);
+        .eq("ano_referencia", anoSelecionado)
+        .eq("banco_cartao", bancoSelecionado);
 
       // Inserir os novos períodos
       const periodosParaInserir = periodos.map(p => {
@@ -182,6 +187,7 @@ export const PeriodosMensaisManager = ({ userId, onUpdate, open, onOpenChange }:
           data_inicio: p.data_inicio,
           data_fim: p.data_fim,
           nome_periodo: p.nome_periodo,
+          banco_cartao: bancoSelecionado,
           // Preenche campos legados com valores aproximados/compatíveis
           dia_inicio: dataInicio.getDate(),
           mes_inicio_offset: 0,
@@ -227,9 +233,17 @@ export const PeriodosMensaisManager = ({ userId, onUpdate, open, onOpenChange }:
         <DialogHeader>
           <DialogTitle>Períodos de Faturamento do Cartão</DialogTitle>
           <DialogDescription>
-            Configure o período de faturamento para cada mês do ano com datas completas.
+            Configure o período de faturamento para cada mês do ano com datas completas. Cada cartão tem sua própria configuração.
           </DialogDescription>
         </DialogHeader>
+
+        {/* Seletor de Cartão */}
+        <Tabs value={bancoSelecionado} onValueChange={(value) => setBancoSelecionado(value as BancoCartao)}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="Santander">Santander</TabsTrigger>
+            <TabsTrigger value="Inter">Inter</TabsTrigger>
+          </TabsList>
+        </Tabs>
 
         {/* Seletor de Ano */}
         <div className="flex items-center gap-3 p-4 bg-primary/5 rounded-lg border border-primary/20">
@@ -251,7 +265,7 @@ export const PeriodosMensaisManager = ({ userId, onUpdate, open, onOpenChange }:
             </SelectContent>
           </Select>
           <span className="text-sm text-muted-foreground ml-auto">
-            Configurando períodos para {anoSelecionado}
+            Configurando {bancoSelecionado} para {anoSelecionado}
           </span>
         </div>
 

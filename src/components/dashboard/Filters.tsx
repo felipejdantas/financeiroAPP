@@ -142,8 +142,11 @@ export const Filters = ({
     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
   ];
 
-  // Filtra períodos pelo ano selecionado se disponível
+  // Filtra períodos pelo ano selecionado se disponível.
+  // Cada cartão tem seu próprio período de faturamento; o dropdown usa o Santander como referência
+  // para escolher o mês (o período do Inter para o mesmo mês é resolvido à parte, na tela de Despesas).
   const periodosFiltrados = periodosMensais.filter(p => {
+    if ((p.banco_cartao || "Santander") !== "Santander") return false;
     if (!anoSelecionado) return true;
     return p.ano_referencia === anoSelecionado;
   }).sort((a, b) => a.mes_referencia - b.mes_referencia);
