@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Despesa } from "@/types/despesa";
 import { format } from "date-fns";
 
@@ -42,6 +43,7 @@ export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias,
   const [newCategory, setNewCategory] = useState("");
   const [showNewResponsavelInput, setShowNewResponsavelInput] = useState(false);
   const [newResponsavel, setNewResponsavel] = useState("");
+  const [isEstorno, setIsEstorno] = useState(false);
 
   const form = useForm<DespesaFormValues>({
     resolver: zodResolver(despesaSchema),
@@ -68,11 +70,12 @@ export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias,
         Data: despesa.Data,
         Descrição: despesa.Descrição,
         Parcelas: despesa.Parcelas,
-        valor: despesa.valor,
+        valor: Math.abs(despesa.valor),
         Categoria: despesa.Categoria,
         created_at: despesa.created_at ? format(new Date(despesa.created_at), "yyyy-MM-dd'T'HH:mm") : format(new Date(), "yyyy-MM-dd'T'HH:mm"),
         banco_cartao: despesa.banco_cartao || "Santander",
       });
+      setIsEstorno(despesa.valor < 0);
       setShowNewCategoryInput(false);
       setNewCategory("");
       setShowNewResponsavelInput(false);
@@ -89,12 +92,20 @@ export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias,
         created_at: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
         banco_cartao: "Santander",
       });
+      setIsEstorno(false);
       setShowNewCategoryInput(false);
       setNewCategory("");
       setShowNewResponsavelInput(false);
       setNewResponsavel("");
     }
   }, [despesa, defaultResponsavel, form]);
+
+  // Estorno só faz sentido em compras de crédito (dinheiro voltando pro cartão)
+  useEffect(() => {
+    if (tipoSelecionado !== "Crédito" && isEstorno) {
+      setIsEstorno(false);
+    }
+  }, [tipoSelecionado, isEstorno]);
 
   const handleSubmit = async (data: DespesaFormValues) => {
     // Definir os tipos válidos exatamente como no schema
@@ -111,12 +122,14 @@ export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias,
     const tipoNormalizado = tiposValidos[tipoOriginal] || data.Tipo;
 
     // Normalização de dados (remover espaços em branco extras e garantir acentos)
+    // Estorno é gravado como valor negativo: reduz automaticamente o total da fatura em todos os cálculos existentes.
     const normalizedData = {
       ...data,
       Responsavel: data.Responsavel.trim(),
       Categoria: data.Categoria.trim(),
       Descrição: data.Descrição.trim(),
       Tipo: tipoNormalizado as any,
+      valor: (tipoNormalizado === "Crédito" && isEstorno) ? -Math.abs(data.valor) : Math.abs(data.valor),
     };
     await onSubmit(normalizedData);
     form.reset();
@@ -230,6 +243,19 @@ export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias,
                     </FormItem>
                   )}
                 />
+              )}
+
+              {tipoSelecionado === "Crédito" && (
+                <div className="flex items-center gap-2 md:col-span-2 -mt-1">
+                  <Checkbox
+                    id="isEstorno"
+                    checked={isEstorno}
+                    onCheckedChange={(checked) => setIsEstorno(checked === true)}
+                  />
+                  <label htmlFor="isEstorno" className="text-sm text-muted-foreground cursor-pointer">
+                    Isso é um estorno (dinheiro voltou pro cartão) — o valor abaixo entra como crédito na fatura
+                  </label>
+                </div>
               )}
 
               <FormField

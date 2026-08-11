@@ -75,6 +75,10 @@ export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange,
   const totalSantander = despesasSantander.reduce((sum, d) => sum + d.valor, 0);
   const totalInter = despesasInter.reduce((sum, d) => sum + d.valor, 0);
 
+  // Estornos (valor negativo) já estão descontados dos totais acima; aqui é só pra dar visibilidade de quanto voltou
+  const estornoSantander = despesasSantander.filter((d) => d.valor < 0).reduce((sum, d) => sum + Math.abs(d.valor), 0);
+  const estornoInter = despesasInter.filter((d) => d.valor < 0).reduce((sum, d) => sum + Math.abs(d.valor), 0);
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
@@ -210,6 +214,11 @@ export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange,
             <p className="text-xs md:text-sm text-muted-foreground truncate mt-2">
               Fatura
             </p>
+            {estornoSantander > 0 && (
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 truncate mt-1">
+                ↩ {formatCurrency(estornoSantander)} estornado
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -229,6 +238,11 @@ export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange,
             <p className="text-xs md:text-sm text-muted-foreground truncate mt-2">
               Fatura
             </p>
+            {estornoInter > 0 && (
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 truncate mt-1">
+                ↩ {formatCurrency(estornoInter)} estornado
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>

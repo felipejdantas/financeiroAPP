@@ -271,6 +271,14 @@ export const DespesasTable = ({ despesas, onEdit, onDelete, onDuplicate, onBulkE
                     <TableCell className="text-foreground text-[10px] md:text-xs max-w-[120px] truncate">
                       <div className="flex items-center gap-1">
                         <span>{despesa.Descrição}</span>
+                        {despesa.valor < 0 && (
+                          <Badge
+                            variant="outline"
+                            className="text-[8px] px-1 py-0 h-4 flex items-center gap-0.5 border-emerald-500 text-emerald-600 dark:text-emerald-400"
+                          >
+                            Estorno
+                          </Badge>
+                        )}
                         {despesa.fixed_cost_id && (
                           <Badge
                             variant={despesa.status === 'pendente' ? 'outline' : 'secondary'}
@@ -302,7 +310,7 @@ export const DespesasTable = ({ despesas, onEdit, onDelete, onDuplicate, onBulkE
                       {getCategoryEmoji(despesa.Categoria)} {despesa.Categoria}
                     </TableCell>
                     <TableCell className="text-foreground text-[10px] md:text-xs">{despesa.Parcelas}</TableCell>
-                    <TableCell className="text-right font-medium text-primary text-[10px] md:text-xs whitespace-nowrap">
+                    <TableCell className={`text-right font-medium text-[10px] md:text-xs whitespace-nowrap ${despesa.valor < 0 ? "text-emerald-600 dark:text-emerald-400" : "text-primary"}`}>
                       {formatCurrency(despesa.valor)}
                     </TableCell>
                     <TableCell className="text-right">
