@@ -56,7 +56,7 @@ export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias,
       valor: 0,
       Categoria: "",
       created_at: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
-      banco_cartao: "Santander",
+      banco_cartao: "Inter",
     },
   });
 
@@ -90,7 +90,7 @@ export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias,
         valor: 0,
         Categoria: "",
         created_at: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
-        banco_cartao: "Santander",
+        banco_cartao: "Inter",
       });
       setIsEstorno(false);
       setShowNewCategoryInput(false);
@@ -235,8 +235,8 @@ export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias,
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent side="bottom">
-                          <SelectItem value="Santander">Santander</SelectItem>
                           <SelectItem value="Inter">Inter</SelectItem>
+                          <SelectItem value="Santander">Santander</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />

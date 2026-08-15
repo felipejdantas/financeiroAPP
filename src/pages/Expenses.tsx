@@ -342,7 +342,7 @@ export default function Expenses() {
                 };
 
                 if (tableName === "Financeiro Cartão") {
-                    updatePayload.banco_cartao = despesa.banco_cartao || "Santander";
+                    updatePayload.banco_cartao = despesa.banco_cartao || "Inter";
                 }
 
                 if (oldTableName !== tableName) {
@@ -393,7 +393,7 @@ export default function Expenses() {
                             created_at: despesa.created_at,
                             fixed_cost_id: despesa.fixed_cost_id,
                             status: despesa.status,
-                            ...(tableName === "Financeiro Cartão" ? { banco_cartao: despesa.banco_cartao || "Santander" } : {})
+                            ...(tableName === "Financeiro Cartão" ? { banco_cartao: despesa.banco_cartao || "Inter" } : {})
                         });
                     }
 
@@ -418,7 +418,7 @@ export default function Expenses() {
                             created_at: despesa.created_at,
                             fixed_cost_id: despesa.fixed_cost_id,
                             status: despesa.status,
-                            ...(tableName === "Financeiro Cartão" ? { banco_cartao: despesa.banco_cartao || "Santander" } : {})
+                            ...(tableName === "Financeiro Cartão" ? { banco_cartao: despesa.banco_cartao || "Inter" } : {})
                         }]);
 
                     if (error) throw error;
@@ -455,7 +455,7 @@ export default function Expenses() {
                     Data: despesa.Data,
                     valor: despesa.valor,
                     user_id: userId,
-                    ...(tableName === "Financeiro Cartão" ? { banco_cartao: despesa.banco_cartao || "Santander" } : {})
+                    ...(tableName === "Financeiro Cartão" ? { banco_cartao: despesa.banco_cartao || "Inter" } : {})
                 }]);
 
             if (error) throw error;
