@@ -651,6 +651,17 @@ export const FixedCosts = () => {
         return getSafeDueDate(today.getFullYear(), today.getMonth() + 1, cost.due_day);
     };
 
+    // Data usada para ordenar a lista: se está pendente, é o vencimento deste mês (já vencido ou não);
+    // se já foi pago, é o próximo vencimento futuro. Ordenar por ela põe vencidos/mais próximos primeiro.
+    const getRelevantDueDate = (cost: FixedCost) => {
+        const status = getStatus(cost);
+        if (status.status === "unpaid") {
+            const today = new Date();
+            return getSafeDueDate(today.getFullYear(), today.getMonth(), cost.due_day);
+        }
+        return getNextDueDate(cost);
+    };
+
     // Helper para gerar meses para o seletor
     const generateReferenceMonths = () => {
         const today = new Date();
@@ -690,7 +701,9 @@ export const FixedCosts = () => {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {costs.map((cost) => {
+                    {[...costs]
+                        .sort((a, b) => getRelevantDueDate(a).getTime() - getRelevantDueDate(b).getTime())
+                        .map((cost) => {
                         const status = getStatus(cost);
                         const costPaidMonths = paidMonthsMap[cost.id] || [];
                         const displayedMonths = costPaidMonths.slice(-6); // Mostrar os últimos 6 lançamentos
