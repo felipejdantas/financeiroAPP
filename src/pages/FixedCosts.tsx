@@ -628,6 +628,29 @@ export const FixedCosts = () => {
         };
     };
 
+    // Garante um dia válido no mês (ex: due_day 31 em fevereiro vira o último dia do mês)
+    const getSafeDueDate = (year: number, monthIndex: number, dueDay: number) => {
+        const lastDayOfMonth = new Date(year, monthIndex + 1, 0).getDate();
+        return new Date(year, monthIndex, Math.min(dueDay, lastDayOfMonth));
+    };
+
+    // Próximo vencimento = mês seguinte à MAIOR competência já lançada (paidMonthsMap, ordenado ascendente),
+    // não o mês real do calendário — senão pagamento antecipado (ex: setembro pago em agosto) não avança a data exibida.
+    const getNextDueDate = (cost: FixedCost) => {
+        const paidMonths = paidMonthsMap[cost.id] || [];
+        const maxPaidMonth = paidMonths.length > 0 ? paidMonths[paidMonths.length - 1] : null; // "yyyy-MM"
+
+        if (maxPaidMonth) {
+            const [yearStr, monthStr] = maxPaidMonth.split("-");
+            const year = parseInt(yearStr, 10);
+            const monthIndex = parseInt(monthStr, 10); // 1-based no texto = já é o índice 0-based do mês seguinte
+            return getSafeDueDate(year, monthIndex, cost.due_day);
+        }
+
+        const today = new Date();
+        return getSafeDueDate(today.getFullYear(), today.getMonth() + 1, cost.due_day);
+    };
+
     // Helper para gerar meses para o seletor
     const generateReferenceMonths = () => {
         const today = new Date();
@@ -697,9 +720,9 @@ export const FixedCosts = () => {
                                             <div className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
                                                 <AlertCircle className="h-3 w-3" />
                                                 {status.status === 'paid' ? (
-                                                    <span>Próximo vencimento: {format(new Date(new Date().getFullYear(), new Date().getMonth() + 1, cost.due_day), "dd/MM/yyyy")}</span>
+                                                    <span>Próximo vencimento: {format(getNextDueDate(cost), "dd/MM/yyyy")}</span>
                                                 ) : (
-                                                    <span>Vencimento: {format(new Date(new Date().getFullYear(), new Date().getMonth(), cost.due_day), "dd/MM/yyyy")}</span>
+                                                    <span>Vencimento: {format(getSafeDueDate(new Date().getFullYear(), new Date().getMonth(), cost.due_day), "dd/MM/yyyy")}</span>
                                                 )}
                                             </div>
                                             {cost.total_cycles && ( // VISUALIZAÇÃO DO TOTAL DE PARCELAS
