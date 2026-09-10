@@ -195,16 +195,29 @@ export default function Expenses() {
     // aqui buscamos o período equivalente do Inter para o mesmo mês/ano.
     useEffect(() => {
         if (!mesSelecionado) {
-            setDataInicioInter("");
-            setDataFimInter("");
+            // Sem "Período Mensal" selecionado (filtro manual de Data Início/Fim): usa o mesmo
+            // intervalo aplicado ao Santander, senão o filtro de data vira um no-op pro Inter.
+            setDataInicioInter(dataInicio);
+            setDataFimInter(dataFim);
             return;
         }
+
         const periodoInter = periodosMensais.find(
             (p: any) => p.mes_referencia === mesSelecionado && p.ano_referencia === anoSelecionado && p.banco_cartao === "Inter"
         );
-        setDataInicioInter(periodoInter?.data_inicio || "");
-        setDataFimInter(periodoInter?.data_fim || "");
-    }, [mesSelecionado, anoSelecionado, periodosMensais]);
+
+        if (periodoInter?.data_inicio && periodoInter?.data_fim) {
+            setDataInicioInter(periodoInter.data_inicio);
+            setDataFimInter(periodoInter.data_fim);
+        } else {
+            // Sem período configurado pro Inter nesse mês: usa o mês cheio como padrão
+            // (mesma convenção do Dashboard, em vez de deixar sem limite nenhum).
+            const primeiroDia = new Date(anoSelecionado, mesSelecionado - 1, 1);
+            const ultimoDia = new Date(anoSelecionado, mesSelecionado, 0);
+            setDataInicioInter(format(primeiroDia, "yyyy-MM-dd"));
+            setDataFimInter(format(ultimoDia, "yyyy-MM-dd"));
+        }
+    }, [mesSelecionado, anoSelecionado, periodosMensais, dataInicio, dataFim]);
 
     const loadUserProfile = async (uid: string) => {
         const { data: profile } = await supabase
