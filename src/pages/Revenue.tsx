@@ -232,8 +232,17 @@ export default function Revenue() {
         }
     };
 
-    const receitasVisiveis = receitas.slice(0, registrosMostrados);
-    const temMaisReceitas = receitas.length > registrosMostrados;
+    const parseDataBR = (data: string) => {
+        const [dia, mes, ano] = (data || "").split("/");
+        if (!dia || !mes || !ano) return 0;
+        return new Date(Number(ano), Number(mes) - 1, Number(dia)).getTime();
+    };
+
+    const receitasOrdenadas = [...receitas].sort((a, b) => {
+        return parseDataBR(b.Data) - parseDataBR(a.Data) || (b.id || 0) - (a.id || 0);
+    });
+    const receitasVisiveis = receitasOrdenadas.slice(0, registrosMostrados);
+    const temMaisReceitas = receitasOrdenadas.length > registrosMostrados;
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 p-2 md:p-8 animate-fade-in">
