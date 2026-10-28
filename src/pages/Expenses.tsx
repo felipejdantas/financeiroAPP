@@ -25,6 +25,86 @@ const inputToDate = (dateStr: string): Date => {
     return new Date(parseInt(ano), parseInt(mes) - 1, parseInt(dia));
 };
 
+// Busca o período de faturamento (data_inicio/data_fim) configurado em periodos_mensais_cartao
+// para um mês/ano/cartão específico. Se o usuário nunca configurou esse mês (comum pra anos futuros,
+// já que a tela de configuração só salva quando aberta e confirmada), cai no mês calendário cheio.
+const getPeriodoCartao = async (
+    userId: string,
+    banco: string,
+    mesReferencia: number,
+    anoReferencia: number
+): Promise<{ data_inicio: string; data_fim: string }> => {
+    const { data } = await supabase
+        .from("periodos_mensais_cartao")
+        .select("data_inicio, data_fim")
+        .eq("user_id", userId)
+        .eq("banco_cartao", banco)
+        .eq("mes_referencia", mesReferencia)
+        .eq("ano_referencia", anoReferencia)
+        .maybeSingle();
+
+    if (data?.data_inicio && data?.data_fim) {
+        return { data_inicio: data.data_inicio, data_fim: data.data_fim };
+    }
+
+    const primeiroDia = new Date(anoReferencia, mesReferencia - 1, 1);
+    const ultimoDia = new Date(anoReferencia, mesReferencia, 0);
+    return {
+        data_inicio: format(primeiroDia, "yyyy-MM-dd"),
+        data_fim: format(ultimoDia, "yyyy-MM-dd"),
+    };
+};
+
+// Descobre em qual período de faturamento (mes_referencia/ano_referencia) uma data cai, pra um cartão.
+// É o ponto de partida pra parcelamento: a 1a parcela pertence ao período que contém a data da compra,
+// não necessariamente ao mês calendário dela (ex: compra em 25/09 pode já cair na fatura de outubro
+// se o período de setembro daquele cartão fechar antes do dia 25).
+const getPeriodoCartaoDaData = async (
+    userId: string,
+    banco: string,
+    data: Date
+): Promise<{ mes_referencia: number; ano_referencia: number; data_inicio: string; data_fim: string }> => {
+    const dataStr = format(data, "yyyy-MM-dd");
+    const { data: periodo } = await supabase
+        .from("periodos_mensais_cartao")
+        .select("mes_referencia, ano_referencia, data_inicio, data_fim")
+        .eq("user_id", userId)
+        .eq("banco_cartao", banco)
+        .lte("data_inicio", dataStr)
+        .gte("data_fim", dataStr)
+        .maybeSingle();
+
+    if (periodo) return periodo;
+
+    // Nenhum período configurado cobre essa data -> usa o mês calendário dela como referência
+    const mesReferencia = data.getMonth() + 1;
+    const anoReferencia = data.getFullYear();
+    const fallback = await getPeriodoCartao(userId, banco, mesReferencia, anoReferencia);
+    return { mes_referencia: mesReferencia, ano_referencia: anoReferencia, ...fallback };
+};
+
+// Dada uma parcela i (0-indexed) a partir do período inicial, devolve a data em que essa parcela deve
+// cair: sempre dentro do período de faturamento alvo, usando o mesmo dia-do-mês da compra original
+// quando possível, ou o último dia do período alvo quando o dia original não existir/exceder ele.
+const calcularDataParcelaCartao = async (
+    userId: string,
+    banco: string,
+    mesReferenciaInicial: number,
+    anoReferenciaInicial: number,
+    diaOriginal: number,
+    indiceParcela: number
+): Promise<Date> => {
+    const mesAbsoluto = mesReferenciaInicial - 1 + indiceParcela;
+    const mesAlvo = (mesAbsoluto % 12) + 1;
+    const anoAlvo = anoReferenciaInicial + Math.floor(mesAbsoluto / 12);
+
+    const periodoAlvo = await getPeriodoCartao(userId, banco, mesAlvo, anoAlvo);
+    const dataFimAlvo = new Date(periodoAlvo.data_fim + "T00:00:00");
+    const diaAlvo = Math.min(diaOriginal, dataFimAlvo.getDate());
+
+    return new Date(dataFimAlvo.getFullYear(), dataFimAlvo.getMonth(), diaAlvo);
+};
+
 const getTotalParcelas = (parcelas: string): string | null => {
     if (!parcelas) return null;
     const normalized = parcelas.trim().toLowerCase();
@@ -390,8 +470,28 @@ export default function Expenses() {
                     const dataInicial = brToDate(despesa.Data);
                     const despesasParceladas = [];
 
+                    const isCartao = tableName === "Financeiro Cartão";
+                    const bancoCartao = despesa.banco_cartao || "Inter";
+                    const diaOriginal = dataInicial.getDate();
+
+                    // Pra cartão, a 1a parcela pertence ao período de faturamento que contém a data da
+                    // compra (não necessariamente o mês calendário dela) — cada parcela seguinte avança
+                    // um período de faturamento daquele cartão por vez.
+                    const periodoInicial = isCartao
+                        ? await getPeriodoCartaoDaData(userId, bancoCartao, dataInicial)
+                        : null;
+
                     for (let i = 0; i < numeroParcelas; i++) {
-                        const dataParcelaDate = addMonths(dataInicial, i);
+                        const dataParcelaDate = isCartao && periodoInicial
+                            ? await calcularDataParcelaCartao(
+                                userId,
+                                bancoCartao,
+                                periodoInicial.mes_referencia,
+                                periodoInicial.ano_referencia,
+                                diaOriginal,
+                                i
+                            )
+                            : addMonths(dataInicial, i);
                         const dataParcela = format(dataParcelaDate, "dd/MM/yyyy");
 
                         despesasParceladas.push({
