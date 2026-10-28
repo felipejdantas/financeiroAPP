@@ -12,6 +12,8 @@ export interface Despesa {
   status?: 'pendente' | 'pago';
   table?: 'cartao' | 'debito';
   banco_cartao?: BancoCartao;
+  mes_fatura?: number | null;
+  ano_fatura?: number | null;
 }
 
 export type BancoCartao = 'Santander' | 'Inter';

@@ -83,6 +83,19 @@ export const DespesasTable = ({ despesas, onEdit, onDelete, onDuplicate, onBulkE
     }
   };
 
+  const MESES_ABREV = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+  // Mostra a etiqueta de fatura só quando ela existir E for diferente do mês/ano da própria Data —
+  // senão é informação redundante (a maioria das parcelas cai no mesmo mês calendário da Data mesmo).
+  const getFaturaLabel = (despesa: Despesa): string | null => {
+    if (!despesa.mes_fatura || !despesa.ano_fatura) return null;
+    const [, mesStr, anoStr] = (despesa.Data || "").split("/");
+    const mesData = parseInt(mesStr, 10);
+    const anoData = parseInt(anoStr, 10);
+    if (despesa.mes_fatura === mesData && despesa.ano_fatura === anoData) return null;
+    return `${MESES_ABREV[despesa.mes_fatura - 1]}/${despesa.ano_fatura}`;
+  };
+
   const getCategoryEmoji = (categoria: string) => {
     // First check if there's a custom emoji for this category
     if (categoryEmojis[categoria]) {
@@ -309,7 +322,20 @@ export const DespesasTable = ({ despesas, onEdit, onDelete, onDuplicate, onBulkE
                     <TableCell className="text-foreground text-[10px] md:text-xs hidden lg:table-cell">
                       {getCategoryEmoji(despesa.Categoria)} {despesa.Categoria}
                     </TableCell>
-                    <TableCell className="text-foreground text-[10px] md:text-xs">{despesa.Parcelas}</TableCell>
+                    <TableCell className="text-foreground text-[10px] md:text-xs">
+                      <div className="flex items-center gap-1">
+                        <span>{despesa.Parcelas}</span>
+                        {getFaturaLabel(despesa) && (
+                          <Badge
+                            variant="outline"
+                            className="text-[8px] px-1 py-0 h-4 whitespace-nowrap"
+                            title="Fatura a que esta parcela pertence (pode diferir do mês da Data)"
+                          >
+                            Fatura {getFaturaLabel(despesa)}
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className={`text-right font-medium text-[10px] md:text-xs whitespace-nowrap ${despesa.valor < 0 ? "text-emerald-600 dark:text-emerald-400" : "text-primary"}`}>
                       {formatCurrency(despesa.valor)}
                     </TableCell>

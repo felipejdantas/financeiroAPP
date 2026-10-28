@@ -459,6 +459,15 @@ const Dashboard = () => {
     const isCredito = tipoNormalizado === "crédito" || tipoNormalizado === "credito";
 
     if (isCredito) {
+      // Se a parcela já tem a fatura marcada explicitamente (mes_fatura/ano_fatura), usa ela direto —
+      // mais confiável que comparar a Data literal contra o intervalo do período, que é só um "selo"
+      // informativo nessas parcelas e pode não bater dia a dia com o fechamento real do cartão.
+      // Só faz sentido numa visão por mês selecionado; num filtro de intervalo de datas livre, a Data
+      // real continua sendo o critério (comportamento de sempre).
+      if (mesSelecionado && despesa.mes_fatura && despesa.ano_fatura) {
+        return despesa.mes_fatura === mesSelecionado && despesa.ano_fatura === anoSelecionado;
+      }
+
       // Cada cartão tem seu próprio período de faturamento (Santander x Inter)
       const isInter = despesa.banco_cartao === "Inter";
       const inicioStr = isInter ? dataInicioInter : dataInicio;
