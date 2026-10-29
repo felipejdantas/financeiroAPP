@@ -15,6 +15,7 @@ import { format, subDays, parseISO, startOfMonth, startOfToday, subMonths, addMo
 import { fetchAllUserRecords } from "@/utils/fetchUtils";
 import { useCartoes } from "@/hooks/use-cartoes";
 import { getCartaoPrincipal, getCartaoReferencia, getNomesCartoes } from "@/utils/cartoes";
+import { propagarCategoriaParcelas } from "@/utils/parcelas";
 
 // Funções utilitárias para conversão de datas
 const brToDate = (dataBr: string): Date => {
@@ -426,7 +427,16 @@ export default function Expenses() {
                         .eq("id", despesa.id);
 
                     if (error) throw error;
-                    toast({ title: "Despesa atualizada com sucesso!" });
+
+                    // Trocou a categoria de uma parcela: leva junto as outras parcelas da mesma compra
+                    const original = despesas.find(d => d.id === despesa.id);
+                    const parcelasAtualizadas = original
+                        ? (await propagarCategoriaParcelas(original, despesa.Categoria, despesas)).length
+                        : 0;
+                    toast({
+                        title: "Despesa atualizada com sucesso!",
+                        description: parcelasAtualizadas > 0 ? `Categoria aplicada também em mais ${parcelasAtualizadas} parcela(s) da mesma compra.` : undefined,
+                    });
                 }
             } else {
                 // ... (rest of the insert logic remains same)
@@ -756,9 +766,19 @@ export default function Expenses() {
                 }
             }
 
+            // Categoria trocada em massa: leva junto as outras parcelas de cada compra selecionada
+            const idsJaAtualizados = [...selectedExpenseIds];
+            if (updates.categoria && !needsTableChange) {
+                for (const despesa of selectedDespesas) {
+                    idsJaAtualizados.push(...await propagarCategoriaParcelas(despesa, updates.categoria, despesas, idsJaAtualizados));
+                }
+            }
+            const parcelasAtualizadas = idsJaAtualizados.length - selectedExpenseIds.length;
+
             toast({
                 title: "Atualização em massa concluída!",
-                description: `${selectedExpenseIds.length} despesa(s) atualizada(s) com sucesso.`,
+                description: `${selectedExpenseIds.length} despesa(s) atualizada(s) com sucesso.`
+                    + (parcelasAtualizadas > 0 ? ` Categoria aplicada também em mais ${parcelasAtualizadas} parcela(s) das mesmas compras.` : ""),
             });
 
             fetchDespesas();

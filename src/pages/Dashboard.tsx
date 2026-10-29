@@ -18,6 +18,7 @@ import { format, addMonths } from "date-fns";
 import { fetchAllUserRecords } from "@/utils/fetchUtils";
 import { useCartoes } from "@/hooks/use-cartoes";
 import { getCartaoPrincipal, getCartaoReferencia } from "@/utils/cartoes";
+import { propagarCategoriaParcelas } from "@/utils/parcelas";
 
 // Funções utilitárias para conversão de datas
 const brToDate = (dataBr: string): Date => {
@@ -651,7 +652,16 @@ const Dashboard = () => {
             .eq("id", despesa.id);
 
           if (error) throw error;
-          toast({ title: "Despesa atualizada com sucesso!" });
+
+          // Trocou a categoria de uma parcela: leva junto as outras parcelas da mesma compra
+          const original = despesas.find(d => d.id === despesa.id);
+          const parcelasAtualizadas = original
+            ? (await propagarCategoriaParcelas(original, despesa.Categoria, despesas)).length
+            : 0;
+          toast({
+            title: "Despesa atualizada com sucesso!",
+            description: parcelasAtualizadas > 0 ? `Categoria aplicada também em mais ${parcelasAtualizadas} parcela(s) da mesma compra.` : undefined,
+          });
         }
       } else {
         // Lógica de inserção (incluindo parcelamento)
