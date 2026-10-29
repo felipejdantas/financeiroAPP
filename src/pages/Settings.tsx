@@ -1,14 +1,19 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings as SettingsIcon, Palette } from "lucide-react";
+import { Settings as SettingsIcon, Palette, CreditCard } from "lucide-react";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import { PeriodosMensaisManager } from "@/components/dashboard/PeriodosMensaisManager";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { CartoesManager } from "@/components/dashboard/CartoesManager";
+import { useSearchParams } from "react-router-dom";
 
 export default function Settings() {
     const [userId, setUserId] = useState<string | null>(null);
     const [configMesesOpen, setConfigMesesOpen] = useState(false);
+    const [searchParams] = useSearchParams();
+    // Links "Cadastrar cartões" do Dashboard/formulário abrem o painel direto
+    const [cartoesOpen, setCartoesOpen] = useState(searchParams.get("cartoes") === "1");
 
     useEffect(() => {
         supabase.auth.getUser().then(({ data: { user } }) => {
@@ -38,6 +43,23 @@ export default function Settings() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-secondary/50 transition-colors">
+                        <div className="flex items-center gap-4">
+                            <div className="p-2 bg-primary/10 rounded-full">
+                                <CreditCard className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                                <h3 className="font-medium">Meus Cartões</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Cadastre, renomeie e organize seus cartões de crédito
+                                </p>
+                            </div>
+                        </div>
+                        <Button variant="outline" onClick={() => setCartoesOpen(true)}>
+                            Gerenciar
+                        </Button>
+                    </div>
+
                     <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-secondary/50 transition-colors">
                         <div className="flex items-center gap-4">
                             <div className="p-2 bg-primary/10 rounded-full">
@@ -74,6 +96,10 @@ export default function Settings() {
                     </div>
                 </CardContent>
             </Card>
+
+            {userId && (
+                <CartoesManager userId={userId} open={cartoesOpen} onOpenChange={setCartoesOpen} />
+            )}
 
             {userId && configMesesOpen && (
                 <PeriodosMensaisManager

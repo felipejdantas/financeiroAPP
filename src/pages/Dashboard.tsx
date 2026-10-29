@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Despesa } from "@/types/despesa";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, AlertCircle, Plus, ChevronLeft, ChevronRight, Calendar } from "lucide-react";
@@ -16,6 +16,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast";
 import { format, addMonths } from "date-fns";
 import { fetchAllUserRecords } from "@/utils/fetchUtils";
+import { useCartoes } from "@/hooks/use-cartoes";
+import { getCartaoPrincipal, getCartaoReferencia } from "@/utils/cartoes";
 
 // Funções utilitárias para conversão de datas
 const brToDate = (dataBr: string): Date => {
@@ -57,9 +59,9 @@ const Dashboard = () => {
 
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
-  // Período do cartão Inter (Santander usa dataInicio/dataFim acima)
-  const [dataInicioInter, setDataInicioInter] = useState("");
-  const [dataFimInter, setDataFimInter] = useState("");
+  // Período de cada cartão por nome (o cartão de referência também usa dataInicio/dataFim acima).
+  // Cartão sem entrada aqui usa dataInicio/dataFim.
+  const [periodosPorCartao, setPeriodosPorCartao] = useState<Record<string, { dataInicio: string; dataFim: string }>>({});
   const [formOpen, setFormOpen] = useState(false);
   const [editingDespesa, setEditingDespesa] = useState<Despesa | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -75,6 +77,10 @@ const Dashboard = () => {
   const [totalInvestido, setTotalInvestido] = useState(0);
   const [saldoAcumulado, setSaldoAcumulado] = useState(0);
   const loadedUserIdRef = useRef<string | null>(null);
+  const { cartoes, legado: cartoesLegado, carregado: cartoesCarregados } = useCartoes(userId);
+  // Referência do "mês atual" e dos rótulos de período (antes, sempre o Santander)
+  const nomeCartaoReferencia = getCartaoReferencia(cartoes)?.nome || "Santander";
+  const nomeCartaoPrincipal = getCartaoPrincipal(cartoes)?.nome;
 
   const handleSummaryFilterChange = (type: string, value?: string) => {
     if (type === "total") {
@@ -148,7 +154,7 @@ const Dashboard = () => {
     }
   };
 
-  const calcularPeriodoDoMes = async (uid: string, mesRef: number, anoRef?: number, banco: 'Santander' | 'Inter' = 'Santander'): Promise<{ dataInicio: string, dataFim: string }> => {
+  const calcularPeriodoDoMes = async (uid: string, mesRef: number, anoRef?: number, banco: string = nomeCartaoReferencia): Promise<{ dataInicio: string, dataFim: string }> => {
     try {
       const anoUsar = anoRef || anoSelecionado;
 
@@ -207,16 +213,15 @@ const Dashboard = () => {
     }
   };
 
-  // Busca o período do mês para os dois cartões e aplica nos filtros (Santander em dataInicio/dataFim, Inter em dataInicioInter/dataFimInter)
+  // Busca o período do mês para cada cartão e aplica nos filtros (o de referência também vai em dataInicio/dataFim)
   const aplicarPeriodoDoMes = async (uid: string, mesRef: number, anoRef: number) => {
-    const [periodoSantander, periodoInter] = await Promise.all([
-      calcularPeriodoDoMes(uid, mesRef, anoRef, 'Santander'),
-      calcularPeriodoDoMes(uid, mesRef, anoRef, 'Inter'),
-    ]);
-    setDataInicio(periodoSantander.dataInicio);
-    setDataFim(periodoSantander.dataFim);
-    setDataInicioInter(periodoInter.dataInicio);
-    setDataFimInter(periodoInter.dataFim);
+    const nomes = [...new Set([nomeCartaoReferencia, ...cartoes.map((c) => c.nome)])];
+    const periodos = await Promise.all(nomes.map((nome) => calcularPeriodoDoMes(uid, mesRef, anoRef, nome)));
+    const porCartao: Record<string, { dataInicio: string; dataFim: string }> = {};
+    nomes.forEach((nome, i) => { porCartao[nome] = periodos[i]; });
+    setDataInicio(porCartao[nomeCartaoReferencia].dataInicio);
+    setDataFim(porCartao[nomeCartaoReferencia].dataFim);
+    setPeriodosPorCartao(porCartao);
   };
 
   const calcularPeriodoAtualDoCartao = async (uid: string) => {
@@ -225,12 +230,12 @@ const Dashboard = () => {
     const anoAtual = hoje.getFullYear();
 
     try {
-      // Busca os períodos configurados (referência: Santander)
+      // Busca os períodos configurados (do cartão de referência)
       const { data: periodos, error } = await supabase
         .from("periodos_mensais_cartao")
         .select("*")
         .eq("user_id", uid)
-        .eq("banco_cartao", "Santander")
+        .eq("banco_cartao", nomeCartaoReferencia)
         .order("mes_referencia");
 
       if (error) throw error;
@@ -294,12 +299,12 @@ const Dashboard = () => {
     const anoAtual = hoje.getFullYear();
 
     try {
-      // Busca os períodos configurados (referência: Santander, usado só para descobrir "em que mês estamos")
+      // Busca os períodos configurados (do cartão de referência, usado só para descobrir "em que mês estamos")
       const { data: periodos, error } = await supabase
         .from("periodos_mensais_cartao")
         .select("*")
         .eq("user_id", uid)
-        .eq("banco_cartao", "Santander")
+        .eq("banco_cartao", nomeCartaoReferencia)
         .order("mes_referencia");
 
       if (error) throw error;
@@ -317,7 +322,7 @@ const Dashboard = () => {
           const dataFim = new Date(anoAtual, periodo.mes_referencia - 1, periodo.dia_fim);
           dataFim.setHours(23, 59, 59, 999);
 
-          // Se hoje está dentro deste período, aplica nos filtros (Santander + Inter)
+          // Se hoje está dentro deste período, aplica nos filtros (todos os cartões)
           if (hoje >= dataInicio && hoje <= dataFim) {
             await aplicarPeriodoDoMes(uid, periodo.mes_referencia, anoAtual);
             setMesSelecionado(periodo.mes_referencia);
@@ -368,12 +373,18 @@ const Dashboard = () => {
       fetchDespesas();
       fetchReceitas();
       fetchInvestimentos();
-      fetchPeriodosMensais();
       fetchCategoryEmojis();
       fetchCategorias();
-      aplicarFiltrosIniciais(userId);
     }
   }, [userId]);
+
+  // Períodos dependem de qual é o cartão de referência, então esperam a lista de cartões carregar
+  useEffect(() => {
+    if (userId && cartoesCarregados) {
+      fetchPeriodosMensais();
+      aplicarFiltrosIniciais(userId);
+    }
+  }, [userId, cartoesCarregados]);
 
   const fetchPeriodosMensais = async () => {
     if (!userId) return;
@@ -383,7 +394,7 @@ const Dashboard = () => {
         .from("periodos_mensais_cartao")
         .select("*")
         .eq("user_id", userId)
-        .eq("banco_cartao", "Santander")
+        .eq("banco_cartao", nomeCartaoReferencia)
         .order("mes_referencia");
 
       if (error) throw error;
@@ -468,10 +479,10 @@ const Dashboard = () => {
         return despesa.mes_fatura === mesSelecionado && despesa.ano_fatura === anoSelecionado;
       }
 
-      // Cada cartão tem seu próprio período de faturamento (Santander x Inter)
-      const isInter = despesa.banco_cartao === "Inter";
-      const inicioStr = isInter ? dataInicioInter : dataInicio;
-      const fimStr = isInter ? dataFimInter : dataFim;
+      // Cada cartão tem seu próprio período de faturamento
+      const periodoCartao = periodosPorCartao[despesa.banco_cartao || nomeCartaoReferencia];
+      const inicioStr = periodoCartao ? periodoCartao.dataInicio : dataInicio;
+      const fimStr = periodoCartao ? periodoCartao.dataFim : dataFim;
 
       if (inicioStr) {
         const dataInicioDate = inputToDate(inicioStr);
@@ -614,7 +625,7 @@ const Dashboard = () => {
         };
 
         if (tableName === "Financeiro Cartão") {
-          updatePayload.banco_cartao = despesa.banco_cartao || "Inter";
+          updatePayload.banco_cartao = despesa.banco_cartao || nomeCartaoPrincipal;
         }
 
         if (oldTableName !== tableName) {
@@ -668,7 +679,7 @@ const Dashboard = () => {
               created_at: despesa.created_at,
               fixed_cost_id: despesa.fixed_cost_id,
               status: despesa.status,
-              ...(tableName === "Financeiro Cartão" ? { banco_cartao: despesa.banco_cartao || "Inter" } : {})
+              ...(tableName === "Financeiro Cartão" ? { banco_cartao: despesa.banco_cartao || nomeCartaoPrincipal } : {})
             });
           }
 
@@ -693,7 +704,7 @@ const Dashboard = () => {
               created_at: despesa.created_at,
               fixed_cost_id: despesa.fixed_cost_id,
               status: despesa.status,
-              ...(tableName === "Financeiro Cartão" ? { banco_cartao: despesa.banco_cartao || "Inter" } : {})
+              ...(tableName === "Financeiro Cartão" ? { banco_cartao: despesa.banco_cartao || nomeCartaoPrincipal } : {})
             }]);
 
           if (error) throw error;
@@ -729,7 +740,7 @@ const Dashboard = () => {
           Data: despesa.Data,
           valor: despesa.valor,
           user_id: userId,
-          ...(tableName === "Financeiro Cartão" ? { banco_cartao: despesa.banco_cartao || "Inter" } : {})
+          ...(tableName === "Financeiro Cartão" ? { banco_cartao: despesa.banco_cartao || nomeCartaoPrincipal } : {})
         }]);
 
       if (error) throw error;
@@ -796,7 +807,7 @@ const Dashboard = () => {
 
     const anoUsar = ano || anoSelecionado;
 
-    // Aplica as datas do período configurado (Santander e Inter) aos filtros principais
+    // Aplica as datas do período configurado (de cada cartão) aos filtros principais
     await aplicarPeriodoDoMes(userId, mes, anoUsar);
     setMesSelecionado(mes);
     if (ano) setAnoSelecionado(ano);
@@ -829,7 +840,7 @@ const Dashboard = () => {
         case "credito":
           return tipo === "crédito" || tipo === "credito";
         case "credito_banco":
-          return (tipo === "crédito" || tipo === "credito") && (despesa.banco_cartao || "Santander") === activeSummaryFilter.value;
+          return (tipo === "crédito" || tipo === "credito") && (despesa.banco_cartao || nomeCartaoReferencia) === activeSummaryFilter.value;
         case "responsavel_credito":
           return (despesa.Responsavel || "").trim() === activeSummaryFilter.value && (tipo === "crédito" || tipo === "credito");
         case "outros":
@@ -1014,6 +1025,16 @@ const Dashboard = () => {
           </Alert>
         )}
 
+        {cartoesCarregados && !cartoesLegado && cartoes.length === 0 && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Você ainda não cadastrou seus cartões de crédito.{" "}
+              <Link to="/settings?cartoes=1" className="text-primary underline font-medium">Cadastrar cartões</Link>
+            </AlertDescription>
+          </Alert>
+        )}
+
         <SummaryCards
           despesas={despesasFiltradas}
           despesasPendentes={despesasPendentes}
@@ -1022,6 +1043,7 @@ const Dashboard = () => {
           totalReceita={totalReceita}
           saldoAcumulado={saldoAcumulado}
           totalInvestido={totalInvestido}
+          cartoes={cartoes}
         />
 
 
@@ -1071,6 +1093,7 @@ const Dashboard = () => {
             categorias={categoriasDisponiveis}
             responsaveis={[...new Set(despesas.map(d => d.Responsavel).filter(Boolean))]}
             defaultResponsavel={userName}
+            cartoes={cartoes}
           />
         )}
 

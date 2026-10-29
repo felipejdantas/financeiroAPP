@@ -10,6 +10,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Checkbox } from "@/components/ui/checkbox";
 import { Despesa } from "@/types/despesa";
 import { format } from "date-fns";
+import { Link } from "react-router-dom";
+import { Cartao, CARTOES_LEGADO, getCartaoPrincipal, getCorCartao, getNomesCartoes } from "@/utils/cartoes";
 
 const despesaSchema = z.object({
   Responsavel: z.string().min(1, "Responsável é obrigatório"),
@@ -20,7 +22,7 @@ const despesaSchema = z.object({
   valor: z.number().positive("Valor deve ser positivo"),
   Categoria: z.string().min(1, "Categoria é obrigatória").max(100, "Categoria muito longa"),
   created_at: z.string().optional(),
-  banco_cartao: z.enum(["Santander", "Inter"]).optional(),
+  banco_cartao: z.string().optional(),
 }).refine((data) => data.Tipo !== "Crédito" || !!data.banco_cartao, {
   message: "Selecione o cartão",
   path: ["banco_cartao"],
@@ -36,9 +38,13 @@ interface DespesaFormProps {
   categorias: string[];
   responsaveis: string[];
   defaultResponsavel?: string;
+  cartoes?: Cartao[];
 }
 
-export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias, responsaveis, defaultResponsavel }: DespesaFormProps) => {
+export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias, responsaveis, defaultResponsavel, cartoes = CARTOES_LEGADO }: DespesaFormProps) => {
+  const cartaoPadrao = getCartaoPrincipal(cartoes)?.nome;
+  // O cartão de uma despesa antiga continua como opção mesmo se já foi desativado
+  const opcoesCartao = getNomesCartoes(cartoes, [despesa?.banco_cartao]);
   const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
   const [newCategory, setNewCategory] = useState("");
   const [showNewResponsavelInput, setShowNewResponsavelInput] = useState(false);
@@ -56,7 +62,7 @@ export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias,
       valor: 0,
       Categoria: "",
       created_at: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
-      banco_cartao: "Inter",
+      banco_cartao: cartaoPadrao,
     },
   });
 
@@ -73,7 +79,7 @@ export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias,
         valor: Math.abs(despesa.valor),
         Categoria: despesa.Categoria,
         created_at: despesa.created_at ? format(new Date(despesa.created_at), "yyyy-MM-dd'T'HH:mm") : format(new Date(), "yyyy-MM-dd'T'HH:mm"),
-        banco_cartao: despesa.banco_cartao || "Santander",
+        banco_cartao: despesa.banco_cartao || cartaoPadrao,
       });
       setIsEstorno(despesa.valor < 0);
       setShowNewCategoryInput(false);
@@ -90,7 +96,7 @@ export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias,
         valor: 0,
         Categoria: "",
         created_at: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
-        banco_cartao: "Inter",
+        banco_cartao: cartaoPadrao,
       });
       setIsEstorno(false);
       setShowNewCategoryInput(false);
@@ -98,7 +104,17 @@ export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias,
       setShowNewResponsavelInput(false);
       setNewResponsavel("");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [despesa, defaultResponsavel, form]);
+
+  // Se a lista de cartões chegar depois do form abrir, só preenche o cartão se ele ainda estiver
+  // vazio — sem resetar o resto do que já foi digitado (ver nota "Bug de Select com Opcoes
+  // Assincronas em react-hook-form" no CEREBRO).
+  useEffect(() => {
+    if (cartaoPadrao && !form.getValues("banco_cartao")) {
+      form.setValue("banco_cartao", cartaoPadrao);
+    }
+  }, [cartaoPadrao, form]);
 
   // Estorno só faz sentido em compras de crédito (dinheiro voltando pro cartão)
   useEffect(() => {
@@ -235,10 +251,22 @@ export const DespesaForm = ({ open, onOpenChange, onSubmit, despesa, categorias,
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent side="bottom">
-                          <SelectItem value="Inter">Inter</SelectItem>
-                          <SelectItem value="Santander">Santander</SelectItem>
+                          {opcoesCartao.map((nome) => (
+                            <SelectItem key={nome} value={nome}>
+                              <span className="flex items-center gap-2">
+                                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: getCorCartao(cartoes, nome) }} />
+                                {nome}
+                              </span>
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
+                      {opcoesCartao.length === 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          Nenhum cartão cadastrado.{" "}
+                          <Link to="/settings?cartoes=1" className="text-primary underline">Cadastrar cartão</Link>
+                        </p>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}

@@ -13,6 +13,8 @@ import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { format, subDays, parseISO, startOfMonth, startOfToday, subMonths, addMonths } from "date-fns";
 import { fetchAllUserRecords } from "@/utils/fetchUtils";
+import { useCartoes } from "@/hooks/use-cartoes";
+import { getCartaoPrincipal, getCartaoReferencia, getNomesCartoes } from "@/utils/cartoes";
 
 // Funções utilitárias para conversão de datas
 const brToDate = (dataBr: string): Date => {
@@ -94,9 +96,9 @@ export default function Expenses() {
     const [parcelaFilter, setParcelaFilter] = useState<string[]>([]);
     const [dataInicio, setDataInicio] = useState("");
     const [dataFim, setDataFim] = useState("");
-    // Período do cartão Inter (Santander usa dataInicio/dataFim acima)
-    const [dataInicioInter, setDataInicioInter] = useState("");
-    const [dataFimInter, setDataFimInter] = useState("");
+    // Período dos outros cartões por nome (o cartão de referência usa dataInicio/dataFim acima).
+    // Cartão sem entrada aqui usa dataInicio/dataFim.
+    const [periodosOutrosCartoes, setPeriodosOutrosCartoes] = useState<Record<string, { dataInicio: string; dataFim: string }>>({});
     const [formOpen, setFormOpen] = useState(false);
     const [editingDespesa, setEditingDespesa] = useState<Despesa | null>(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -112,6 +114,10 @@ export default function Expenses() {
     const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
 
     const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+
+    const { cartoes } = useCartoes(userId);
+    const nomeCartaoReferencia = getCartaoReferencia(cartoes)?.nome || "Santander";
+    const nomeCartaoPrincipal = getCartaoPrincipal(cartoes)?.nome;
 
     const fetchDespesas = async () => {
         if (!userId) return;
@@ -231,33 +237,35 @@ export default function Expenses() {
         }
     }, [userId]);
 
-    // O período selecionado (via dropdown "Período Mensal") reflete o cartão Santander;
-    // aqui buscamos o período equivalente do Inter para o mesmo mês/ano.
+    // O período selecionado (via dropdown "Período Mensal") reflete o cartão de referência;
+    // aqui buscamos o período equivalente dos outros cartões para o mesmo mês/ano.
     useEffect(() => {
         if (!mesSelecionado) {
-            // Sem "Período Mensal" selecionado (filtro manual de Data Início/Fim): usa o mesmo
-            // intervalo aplicado ao Santander, senão o filtro de data vira um no-op pro Inter.
-            setDataInicioInter(dataInicio);
-            setDataFimInter(dataFim);
+            // Sem "Período Mensal" selecionado (filtro manual de Data Início/Fim): todos os cartões
+            // usam o mesmo intervalo (sem entrada no mapa = dataInicio/dataFim), senão o filtro
+            // de data vira um no-op pros outros cartões.
+            setPeriodosOutrosCartoes({});
             return;
         }
 
-        const periodoInter = periodosMensais.find(
-            (p: any) => p.mes_referencia === mesSelecionado && p.ano_referencia === anoSelecionado && p.banco_cartao === "Inter"
-        );
+        const primeiroDia = format(new Date(anoSelecionado, mesSelecionado - 1, 1), "yyyy-MM-dd");
+        const ultimoDia = format(new Date(anoSelecionado, mesSelecionado, 0), "yyyy-MM-dd");
+        const porCartao: Record<string, { dataInicio: string; dataFim: string }> = {};
 
-        if (periodoInter?.data_inicio && periodoInter?.data_fim) {
-            setDataInicioInter(periodoInter.data_inicio);
-            setDataFimInter(periodoInter.data_fim);
-        } else {
-            // Sem período configurado pro Inter nesse mês: usa o mês cheio como padrão
+        for (const cartao of cartoes) {
+            if (cartao.nome === nomeCartaoReferencia) continue;
+            const periodo = periodosMensais.find(
+                (p: any) => p.mes_referencia === mesSelecionado && p.ano_referencia === anoSelecionado && p.banco_cartao === cartao.nome
+            );
+            // Sem período configurado pro cartão nesse mês: usa o mês cheio como padrão
             // (mesma convenção do Dashboard, em vez de deixar sem limite nenhum).
-            const primeiroDia = new Date(anoSelecionado, mesSelecionado - 1, 1);
-            const ultimoDia = new Date(anoSelecionado, mesSelecionado, 0);
-            setDataInicioInter(format(primeiroDia, "yyyy-MM-dd"));
-            setDataFimInter(format(ultimoDia, "yyyy-MM-dd"));
+            porCartao[cartao.nome] = periodo?.data_inicio && periodo?.data_fim
+                ? { dataInicio: periodo.data_inicio, dataFim: periodo.data_fim }
+                : { dataInicio: primeiroDia, dataFim: ultimoDia };
         }
-    }, [mesSelecionado, anoSelecionado, periodosMensais, dataInicio, dataFim]);
+
+        setPeriodosOutrosCartoes(porCartao);
+    }, [mesSelecionado, anoSelecionado, periodosMensais, cartoes, nomeCartaoReferencia]);
 
     const loadUserProfile = async (uid: string) => {
         const { data: profile } = await supabase
@@ -311,10 +319,10 @@ export default function Expenses() {
         const despesaDate = brToDate(despesa.Data);
 
         if (isCredito) {
-            // Cada cartão tem seu próprio período de faturamento (Santander x Inter)
-            const isInter = despesa.banco_cartao === "Inter";
-            const inicioStr = isInter ? dataInicioInter : dataInicio;
-            const fimStr = isInter ? dataFimInter : dataFim;
+            // Cada cartão tem seu próprio período de faturamento
+            const periodoCartao = periodosOutrosCartoes[despesa.banco_cartao || ""];
+            const inicioStr = periodoCartao ? periodoCartao.dataInicio : dataInicio;
+            const fimStr = periodoCartao ? periodoCartao.dataFim : dataFim;
 
             if (inicioStr) {
                 const dataInicioDate = inputToDate(inicioStr);
@@ -395,7 +403,7 @@ export default function Expenses() {
                 };
 
                 if (tableName === "Financeiro Cartão") {
-                    updatePayload.banco_cartao = despesa.banco_cartao || "Inter";
+                    updatePayload.banco_cartao = despesa.banco_cartao || nomeCartaoPrincipal;
                 }
 
                 if (oldTableName !== tableName) {
@@ -431,7 +439,7 @@ export default function Expenses() {
                     const despesasParceladas = [];
 
                     const isCartao = tableName === "Financeiro Cartão";
-                    const bancoCartao = despesa.banco_cartao || "Inter";
+                    const bancoCartao = despesa.banco_cartao || nomeCartaoPrincipal;
 
                     // A Data de cada parcela continua literal (mesmo dia-do-mês da compra, +1 mês por
                     // parcela) — nunca é "empurrada" pra caber numa janela de fatura. Pra cartão, cada
@@ -439,7 +447,7 @@ export default function Expenses() {
                     // a qual fatura ela pertence de verdade, calculada a partir do período de faturamento
                     // que contém a data da compra — sem mudar a Data exibida. Ver nota FIN 2.0 no CEREBRO.
                     const periodoInicial = isCartao
-                        ? await getPeriodoCartaoDaData(userId, bancoCartao, dataInicial)
+                        ? await getPeriodoCartaoDaData(userId, bancoCartao || "", dataInicial)
                         : null;
 
                     for (let i = 0; i < numeroParcelas; i++) {
@@ -487,7 +495,7 @@ export default function Expenses() {
                             created_at: despesa.created_at,
                             fixed_cost_id: despesa.fixed_cost_id,
                             status: despesa.status,
-                            ...(tableName === "Financeiro Cartão" ? { banco_cartao: despesa.banco_cartao || "Inter" } : {})
+                            ...(tableName === "Financeiro Cartão" ? { banco_cartao: despesa.banco_cartao || nomeCartaoPrincipal } : {})
                         }]);
 
                     if (error) throw error;
@@ -524,7 +532,7 @@ export default function Expenses() {
                     Data: despesa.Data,
                     valor: despesa.valor,
                     user_id: userId,
-                    ...(tableName === "Financeiro Cartão" ? { banco_cartao: despesa.banco_cartao || "Inter" } : {})
+                    ...(tableName === "Financeiro Cartão" ? { banco_cartao: despesa.banco_cartao || nomeCartaoPrincipal } : {})
                 }]);
 
             if (error) throw error;
@@ -836,6 +844,8 @@ export default function Expenses() {
                         periodosMensais={periodosMensais}
                         userId={userId || ""}
                         onClearFilters={limparFiltros}
+                        nomesCartoes={getNomesCartoes(cartoes, despesas.map(d => d.banco_cartao))}
+                        cartaoReferencia={nomeCartaoReferencia}
                     />
                 )}
 
@@ -875,6 +885,7 @@ export default function Expenses() {
                         categorias={categoriasDisponiveis}
                         responsaveis={[...new Set(despesas.map(d => d.Responsavel).filter(Boolean))]}
                         defaultResponsavel={userName}
+                        cartoes={cartoes}
                     />
                 )}
 

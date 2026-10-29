@@ -16,7 +16,8 @@ export interface Despesa {
   ano_fatura?: number | null;
 }
 
-export type BancoCartao = 'Santander' | 'Inter';
+// Nome de um cartão cadastrado em `cartoes` (antes era só 'Santander' | 'Inter').
+export type BancoCartao = string;
 
 export type ResponsavelFilter = 'todos' | string;
 export type TipoFilter = 'todos' | 'Crédito' | 'Débito' | 'Pix' | 'Dinheiro';

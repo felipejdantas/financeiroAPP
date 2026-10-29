@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Despesa } from "@/types/despesa";
 import { Wallet, CreditCard, Banknote, User, TrendingUp, Scale, ArrowUpCircle, ArrowDownCircle, PiggyBank } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { Cartao, CARTOES_LEGADO, getCartaoReferencia, getCorCartao } from "@/utils/cartoes";
 
 interface SummaryCardsProps {
   despesas: Despesa[];
@@ -11,9 +12,10 @@ interface SummaryCardsProps {
   totalReceita: number;
   saldoAcumulado?: number;
   totalInvestido?: number;
+  cartoes?: Cartao[];
 }
 
-export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange, activeFilter, totalReceita, saldoAcumulado, totalInvestido }: SummaryCardsProps) => {
+export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange, activeFilter, totalReceita, saldoAcumulado, totalInvestido, cartoes = CARTOES_LEGADO }: SummaryCardsProps) => {
   const navigate = useNavigate();
   const totalPendentes = despesasPendentes.reduce((sum, d) => sum + (d.valor || 0), 0);
   const totalGeral = despesas.reduce((sum, d) => sum + d.valor, 0) + totalPendentes;
@@ -69,15 +71,30 @@ export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange,
     return { nome: resp, total };
   });
 
-  // Separar Cartão de Crédito por banco (Santander / Inter), para não confundir as duas faturas
-  const despesasSantander = despesasCredito.filter((d) => (d.banco_cartao || "Santander") === "Santander");
-  const despesasInter = despesasCredito.filter((d) => d.banco_cartao === "Inter");
-  const totalSantander = despesasSantander.reduce((sum, d) => sum + d.valor, 0);
-  const totalInter = despesasInter.reduce((sum, d) => sum + d.valor, 0);
-
-  // Estornos (valor negativo) já estão descontados dos totais acima; aqui é só pra dar visibilidade de quanto voltou
-  const estornoSantander = despesasSantander.filter((d) => d.valor < 0).reduce((sum, d) => sum + Math.abs(d.valor), 0);
-  const estornoInter = despesasInter.filter((d) => d.valor < 0).reduce((sum, d) => sum + Math.abs(d.valor), 0);
+  // Um card por cartão cadastrado, pra não confundir as faturas. Cartão desativado só aparece se
+  // ainda tiver lançamento no período; nome sem cadastro (não deveria acontecer) também aparece.
+  const nomeReferencia = getCartaoReferencia(cartoes)?.nome || "";
+  const nomesComLancamento = new Set(despesasCredito.map((d) => d.banco_cartao || nomeReferencia));
+  const nomesCards = cartoes
+    .filter((c) => c.ativo || nomesComLancamento.has(c.nome))
+    .map((c) => c.nome);
+  for (const nome of nomesComLancamento) {
+    if (nome && !nomesCards.includes(nome)) nomesCards.push(nome);
+  }
+  const totaisPorCartao = nomesCards.map((nome) => {
+    const doCartao = despesasCredito.filter((d) => (d.banco_cartao || nomeReferencia) === nome);
+    return {
+      nome,
+      cor: getCorCartao(cartoes, nome),
+      total: doCartao.reduce((sum, d) => sum + d.valor, 0),
+      // Estornos (valor negativo) já estão descontados do total; aqui é só pra dar visibilidade de quanto voltou
+      estorno: doCartao.filter((d) => d.valor < 0).reduce((sum, d) => sum + Math.abs(d.valor), 0),
+    };
+  });
+  const gridCartoes = totaisPorCartao.length >= 3 ? "md:grid-cols-2 lg:grid-cols-3" : "md:grid-cols-2";
+  const legendaTotalCartoes = totaisPorCartao.length <= 3
+    ? totaisPorCartao.map((c) => c.nome).join(" + ")
+    : `${totaisPorCartao.length} cartões`;
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -196,75 +213,65 @@ export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange,
         </Card>
       </div>
 
-      {/* Linha 3: Cartão de Crédito (por banco) */}
-      <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-        {/* Santander */}
-        <Card
-          className={`${getCardStyle("credito_banco", "Santander")} h-full border-l-4 border-l-red-600`}
-          onClick={() => onFilterChange("credito_banco", "Santander")}
-        >
-          <CardHeader className="flex flex-row items-center justify-center gap-2 space-y-0 p-6">
-            <CardTitle className="text-base md:text-lg font-medium text-card-foreground truncate">
-              Cartão Santander
-            </CardTitle>
-            <CreditCard className="h-5 w-5 text-red-600" />
-          </CardHeader>
-          <CardContent className="p-6 pt-0 text-center">
-            <div className="text-2xl md:text-3xl font-bold text-card-foreground truncate">{formatCurrency(totalSantander)}</div>
-            <p className="text-xs md:text-sm text-muted-foreground truncate mt-2">
-              Fatura
-            </p>
-            {estornoSantander > 0 && (
-              <p className="text-xs text-emerald-600 dark:text-emerald-400 truncate mt-1">
-                ↩ {formatCurrency(estornoSantander)} estornado
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Inter */}
-        <Card
-          className={`${getCardStyle("credito_banco", "Inter")} h-full border-l-4 border-l-orange-500`}
-          onClick={() => onFilterChange("credito_banco", "Inter")}
-        >
-          <CardHeader className="flex flex-row items-center justify-center gap-2 space-y-0 p-6">
-            <CardTitle className="text-base md:text-lg font-medium text-card-foreground truncate">
-              Cartão Inter
-            </CardTitle>
-            <CreditCard className="h-5 w-5 text-orange-500" />
-          </CardHeader>
-          <CardContent className="p-6 pt-0 text-center">
-            <div className="text-2xl md:text-3xl font-bold text-card-foreground truncate">{formatCurrency(totalInter)}</div>
-            <p className="text-xs md:text-sm text-muted-foreground truncate mt-2">
-              Fatura
-            </p>
-            {estornoInter > 0 && (
-              <p className="text-xs text-emerald-600 dark:text-emerald-400 truncate mt-1">
-                ↩ {formatCurrency(estornoInter)} estornado
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      {/* Linha 3: Cartão de Crédito (um card por cartão; com um cartão só, o card de total já basta) */}
+      {totaisPorCartao.length > 1 && (
+        <div className={`grid gap-4 grid-cols-1 ${gridCartoes}`}>
+          {totaisPorCartao.map((cartao) => (
+            <Card
+              key={`cartao-${cartao.nome}`}
+              className={`${getCardStyle("credito_banco", cartao.nome)} h-full border-l-4`}
+              style={{ borderLeftColor: cartao.cor }}
+              onClick={() => onFilterChange("credito_banco", cartao.nome)}
+            >
+              <CardHeader className="flex flex-row items-center justify-center gap-2 space-y-0 p-6">
+                <CardTitle className="text-base md:text-lg font-medium text-card-foreground truncate">
+                  Cartão {cartao.nome}
+                </CardTitle>
+                <CreditCard className="h-5 w-5 flex-shrink-0" style={{ color: cartao.cor }} />
+              </CardHeader>
+              <CardContent className="p-6 pt-0 text-center">
+                <div className="text-2xl md:text-3xl font-bold text-card-foreground truncate">{formatCurrency(cartao.total)}</div>
+                <p className="text-xs md:text-sm text-muted-foreground truncate mt-2">
+                  Fatura
+                </p>
+                {cartao.estorno > 0 && (
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400 truncate mt-1">
+                    ↩ {formatCurrency(cartao.estorno)} estornado
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Linha 3b: Total do Cartão e Responsáveis (Cartão) */}
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-        {/* Total Cartão de Crédito (Santander + Inter) */}
+        {/* Total Cartão de Crédito (soma de todos os cartões) */}
         <Card
-          className={`${getCardStyle("credito")} h-full border-l-4 border-l-blue-500`}
+          className={`${getCardStyle("credito")} h-full border-l-4 ${totaisPorCartao.length === 1 ? "" : "border-l-blue-500"}`}
+          style={totaisPorCartao.length === 1 ? { borderLeftColor: totaisPorCartao[0].cor } : undefined}
           onClick={() => onFilterChange("credito")}
         >
           <CardHeader className="flex flex-row items-center justify-center gap-2 space-y-0 p-6">
             <CardTitle className="text-base md:text-lg font-medium text-card-foreground truncate">
-              Cartão de Crédito (Total)
+              {totaisPorCartao.length === 1 ? `Cartão ${totaisPorCartao[0].nome}` : "Cartão de Crédito (Total)"}
             </CardTitle>
-            <CreditCard className="h-5 w-5 text-blue-500" />
+            <CreditCard
+              className={`h-5 w-5 flex-shrink-0 ${totaisPorCartao.length === 1 ? "" : "text-blue-500"}`}
+              style={totaisPorCartao.length === 1 ? { color: totaisPorCartao[0].cor } : undefined}
+            />
           </CardHeader>
           <CardContent className="p-6 pt-0 text-center flex flex-col justify-center h-[calc(100%-80px)]">
             <div className="text-2xl md:text-3xl font-bold text-card-foreground truncate">{formatCurrency(totalCredito)}</div>
             <p className="text-xs md:text-sm text-muted-foreground truncate mt-2">
-              Santander + Inter
+              {totaisPorCartao.length === 1 ? "Fatura" : legendaTotalCartoes || "Nenhum cartão cadastrado"}
             </p>
+            {totaisPorCartao.length === 1 && totaisPorCartao[0].estorno > 0 && (
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 truncate mt-1">
+                ↩ {formatCurrency(totaisPorCartao[0].estorno)} estornado
+              </p>
+            )}
           </CardContent>
         </Card>
 

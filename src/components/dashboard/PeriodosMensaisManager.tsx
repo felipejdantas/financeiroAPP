@@ -17,6 +17,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import type { BancoCartao } from "@/types/despesa";
+import { useCartoes } from "@/hooks/use-cartoes";
+import { getCartaoReferencia, getNomesCartoes } from "@/utils/cartoes";
 
 interface PeriodoMensal {
   mes_referencia: number;
@@ -47,12 +49,21 @@ const ANOS = [2025, 2026, 2027, 2028];
 export const PeriodosMensaisManager = ({ userId, onUpdate, open, onOpenChange }: PeriodosMensaisManagerProps) => {
   const [periodos, setPeriodos] = useState<PeriodoMensal[]>([]);
   const [anoSelecionado, setAnoSelecionado] = useState(new Date().getFullYear());
-  const [bancoSelecionado, setBancoSelecionado] = useState<BancoCartao>("Santander");
+  const [bancoSelecionado, setBancoSelecionado] = useState<BancoCartao>("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { cartoes, carregado: cartoesCarregados } = useCartoes(userId);
+  const nomesCartoes = getNomesCartoes(cartoes);
+
+  // Começa pelo cartão de referência (o primeiro da lista — pro usuário atual, o Santander)
+  useEffect(() => {
+    if (cartoesCarregados && !bancoSelecionado) {
+      setBancoSelecionado(getCartaoReferencia(cartoes)?.nome || "");
+    }
+  }, [cartoesCarregados, cartoes, bancoSelecionado]);
 
   useEffect(() => {
-    if (open && userId) {
+    if (open && userId && bancoSelecionado) {
       loadPeriodos();
     }
   }, [open, userId, anoSelecionado, bancoSelecionado]);
@@ -139,6 +150,7 @@ export const PeriodosMensaisManager = ({ userId, onUpdate, open, onOpenChange }:
   };
 
   const handleSave = async () => {
+    if (!bancoSelecionado) return;
     setLoading(true);
     try {
       // Validar períodos
@@ -238,12 +250,19 @@ export const PeriodosMensaisManager = ({ userId, onUpdate, open, onOpenChange }:
         </DialogHeader>
 
         {/* Seletor de Cartão */}
-        <Tabs value={bancoSelecionado} onValueChange={(value) => setBancoSelecionado(value as BancoCartao)}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="Santander">Santander</TabsTrigger>
-            <TabsTrigger value="Inter">Inter</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        {cartoesCarregados && nomesCartoes.length === 0 ? (
+          <p className="text-sm text-muted-foreground p-4 border rounded-lg">
+            Nenhum cartão cadastrado. Cadastre seus cartões em Configurações &gt; Meus Cartões.
+          </p>
+        ) : (
+          <Tabs value={bancoSelecionado} onValueChange={(value) => setBancoSelecionado(value as BancoCartao)}>
+            <TabsList className="flex flex-wrap h-auto w-full">
+              {nomesCartoes.map((nome) => (
+                <TabsTrigger key={nome} value={nome} className="flex-1">{nome}</TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        )}
 
         {/* Seletor de Ano */}
         <div className="flex items-center gap-3 p-4 bg-primary/5 rounded-lg border border-primary/20">
@@ -307,7 +326,7 @@ export const PeriodosMensaisManager = ({ userId, onUpdate, open, onOpenChange }:
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             Cancelar
           </Button>
-          <Button onClick={handleSave} disabled={loading}>
+          <Button onClick={handleSave} disabled={loading || !bancoSelecionado}>
             <Save className="mr-2 h-4 w-4" />
             Salvar Todos
           </Button>

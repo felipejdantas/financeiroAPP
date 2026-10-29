@@ -32,6 +32,10 @@ interface FiltersProps {
   periodosMensais: any[];
   userId: string;
   onClearFilters: () => void;
+  // Nomes dos cartões que aparecem no filtro "Cartão"
+  nomesCartoes?: string[];
+  // Cartão cujos períodos alimentam o dropdown "Período Mensal" (antes, sempre o Santander)
+  cartaoReferencia?: string;
 }
 
 export const Filters = ({
@@ -57,6 +61,8 @@ export const Filters = ({
   periodosMensais,
   userId,
   onClearFilters,
+  nomesCartoes = ["Santander", "Inter"],
+  cartaoReferencia = "Santander",
 }: FiltersProps) => {
   const opcoesParcelamento = [
     { value: "1", label: "A vista" },
@@ -143,10 +149,10 @@ export const Filters = ({
   ];
 
   // Filtra períodos pelo ano selecionado se disponível.
-  // Cada cartão tem seu próprio período de faturamento; o dropdown usa o Santander como referência
-  // para escolher o mês (o período do Inter para o mesmo mês é resolvido à parte, na tela de Despesas).
+  // Cada cartão tem seu próprio período de faturamento; o dropdown usa o cartão de referência
+  // para escolher o mês (o período dos outros cartões para o mesmo mês é resolvido à parte, na tela de Despesas).
   const periodosFiltrados = periodosMensais.filter(p => {
-    if ((p.banco_cartao || "Santander") !== "Santander") return false;
+    if ((p.banco_cartao || cartaoReferencia) !== cartaoReferencia) return false;
     if (!anoSelecionado) return true;
     return p.ano_referencia === anoSelecionado;
   }).sort((a, b) => a.mes_referencia - b.mes_referencia);
@@ -360,38 +366,27 @@ export const Filters = ({
               </PopoverTrigger>
               <PopoverContent className="w-56 bg-popover border-border">
                 <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="cartao-santander"
-                      checked={bancoCartaoFilter.includes("Santander")}
-                      onCheckedChange={(checked) => {
-                        if (checked) setBancoCartaoFilter([...bancoCartaoFilter, "Santander"]);
-                        else setBancoCartaoFilter(bancoCartaoFilter.filter((b) => b !== "Santander"));
-                      }}
-                    />
-                    <label
-                      htmlFor="cartao-santander"
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                    >
-                      Santander
-                    </label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="cartao-inter"
-                      checked={bancoCartaoFilter.includes("Inter")}
-                      onCheckedChange={(checked) => {
-                        if (checked) setBancoCartaoFilter([...bancoCartaoFilter, "Inter"]);
-                        else setBancoCartaoFilter(bancoCartaoFilter.filter((b) => b !== "Inter"));
-                      }}
-                    />
-                    <label
-                      htmlFor="cartao-inter"
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                    >
-                      Inter
-                    </label>
-                  </div>
+                  {nomesCartoes.length === 0 && (
+                    <p className="text-sm text-muted-foreground">Nenhum cartão cadastrado</p>
+                  )}
+                  {nomesCartoes.map((nome) => (
+                    <div key={nome} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`cartao-${nome}`}
+                        checked={bancoCartaoFilter.includes(nome)}
+                        onCheckedChange={(checked) => {
+                          if (checked) setBancoCartaoFilter([...bancoCartaoFilter, nome]);
+                          else setBancoCartaoFilter(bancoCartaoFilter.filter((b) => b !== nome));
+                        }}
+                      />
+                      <label
+                        htmlFor={`cartao-${nome}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                      >
+                        {nome}
+                      </label>
+                    </div>
+                  ))}
                 </div>
               </PopoverContent>
             </Popover>
