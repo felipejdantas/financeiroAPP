@@ -6,6 +6,7 @@ import { PeriodosMensaisManager } from "@/components/dashboard/PeriodosMensaisMa
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { CartoesManager } from "@/components/dashboard/CartoesManager";
+import { TelegramConnect } from "@/components/dashboard/TelegramConnect";
 import { useSearchParams } from "react-router-dom";
 
 export default function Settings() {
@@ -59,6 +60,8 @@ export default function Settings() {
                             Gerenciar
                         </Button>
                     </div>
+
+                    {userId && <TelegramConnect userId={userId} />}
 
                     <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-secondary/50 transition-colors">
                         <div className="flex items-center gap-4">
