@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { AlertCircle, Ban, CalendarClock, LockOpen, RefreshCw, Search, Send, ShieldCheck, UserPlus, Users, Wallet } from "lucide-react";
+import { AlertCircle, Ban, CalendarClock, LockOpen, RefreshCw, Search, Send, ShieldCheck, Trash2, UserPlus, Users, Wallet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSouAdmin } from "@/hooks/use-sou-admin";
 import { useToast } from "@/hooks/use-toast";
@@ -117,6 +117,9 @@ export default function Admin() {
   const [novaContaOpen, setNovaContaOpen] = useState(false);
   const [contaPagamento, setContaPagamento] = useState<Conta | null>(null);
   const [contaBloqueio, setContaBloqueio] = useState<Conta | null>(null);
+  const [contaExclusao, setContaExclusao] = useState<Conta | null>(null);
+  const [emailConfirmacao, setEmailConfirmacao] = useState("");
+  const [excluindo, setExcluindo] = useState(false);
   const { toast } = useToast();
 
   const carregar = async () => {
@@ -160,6 +163,24 @@ export default function Admin() {
       return;
     }
     toast({ title: bloquear ? `${conta.nome || conta.email} bloqueado` : `${conta.nome || conta.email} desbloqueado` });
+    carregar();
+  };
+
+  const emailConfere = !!contaExclusao && emailConfirmacao.trim().toLowerCase() === contaExclusao.email.toLowerCase();
+
+  const handleExcluir = async () => {
+    const conta = contaExclusao;
+    if (!conta || !emailConfere) return;
+    setExcluindo(true);
+    // Apaga lançamentos, cadastros e o login (fin_admin_excluir_conta, migration 20261030220000)
+    const { error } = await supabase.rpc("fin_admin_excluir_conta" as any, { p_user_id: conta.user_id, p_email_confirmacao: emailConfirmacao });
+    setExcluindo(false);
+    if (error) {
+      toast({ title: "Erro ao excluir conta", description: error.message, variant: "destructive" });
+      return;
+    }
+    setContaExclusao(null);
+    toast({ title: `Conta ${conta.email} excluída` });
     carregar();
   };
 
@@ -312,6 +333,15 @@ export default function Admin() {
                           >
                             {conta.acesso?.bloqueado ? <LockOpen className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
                           </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="hover:text-destructive"
+                            title="Excluir conta"
+                            onClick={() => { setContaExclusao(conta); setEmailConfirmacao(""); }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       )}
                     </div>
@@ -357,6 +387,35 @@ export default function Admin() {
         onOpenChange={(aberto) => { if (!aberto) setContaPagamento(null); }}
         onRegistrado={carregar}
       />
+
+      <AlertDialog open={!!contaExclusao} onOpenChange={(aberto) => { if (!aberto && !excluindo) setContaExclusao(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir a conta {contaExclusao?.email}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apaga o login e todos os dados da conta
+              {contaExclusao && contaExclusao.lancamentos > 0 ? ` (${contaExclusao.lancamentos} lançamentos)` : ""}, incluindo
+              cartões, categorias, receitas, despesas fixas, pagamentos e o vínculo com o Telegram. Não dá para desfazer.
+              Se for só falta de pagamento, prefira bloquear.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <p className="text-sm">Para confirmar, digite o e-mail da conta:</p>
+            <Input
+              value={emailConfirmacao}
+              onChange={(e) => setEmailConfirmacao(e.target.value)}
+              placeholder={contaExclusao?.email}
+              autoComplete="off"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={excluindo}>Cancelar</AlertDialogCancel>
+            <Button variant="destructive" onClick={handleExcluir} disabled={!emailConfere || excluindo}>
+              {excluindo ? "Excluindo..." : "Excluir conta"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!contaBloqueio} onOpenChange={(aberto) => { if (!aberto) setContaBloqueio(null); }}>
         <AlertDialogContent>
