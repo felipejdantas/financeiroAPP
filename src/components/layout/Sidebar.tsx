@@ -7,7 +7,6 @@ import {
     Tag,
     Target,
     Calendar,
-    User,
     Settings,
     LogOut,
     ChevronLeft,
@@ -35,7 +34,6 @@ const navigation = [
     { name: "Despesas Fixas", href: "/fixed-costs", icon: Clock },
     { name: "Planejamento", href: "/planning", icon: Target },
     { name: "Agendamentos", href: "/scheduling", icon: Calendar },
-    { name: "Perfil", href: "/profile", icon: User },
     { name: "Configurações", href: "/settings", icon: Settings },
 ];
 

@@ -10,7 +10,6 @@ import Expenses from "./pages/Expenses";
 import Categories from "./pages/Categories";
 import Planning from "./pages/Planning";
 import Scheduling from "./pages/Scheduling";
-import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
 import Investments from "./pages/Investments";
@@ -49,7 +48,6 @@ const App = () => (
               <Route path="planning" element={<Planning />} />
               <Route path="scheduling" element={<Scheduling />} />
               <Route path="investments" element={<Investments />} />
-              <Route path="profile" element={<Profile />} />
               <Route path="settings" element={<Settings />} />
               <Route path="admin" element={<Admin />} />
             </Route>
