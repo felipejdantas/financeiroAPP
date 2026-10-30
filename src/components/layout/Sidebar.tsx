@@ -14,11 +14,13 @@ import {
     ChevronRight,
     Clock,
     TrendingUp,
-    PiggyBank
+    PiggyBank,
+    ShieldCheck
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
+import { useSouAdmin } from "@/hooks/use-sou-admin";
 
 interface SidebarProps {
     className?: string;
@@ -42,6 +44,10 @@ export const Sidebar = ({ className }: SidebarProps) => {
     const navigate = useNavigate();
     const { toast } = useToast();
     const [collapsed, setCollapsed] = useState(false);
+    const { souAdmin } = useSouAdmin();
+    const itens = souAdmin
+        ? [...navigation, { name: "Contas", href: "/admin", icon: ShieldCheck }]
+        : navigation;
 
     const handleLogout = async () => {
         const { error } = await supabase.auth.signOut();
@@ -87,7 +93,7 @@ export const Sidebar = ({ className }: SidebarProps) => {
 
             {/* Navigation */}
             <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-                {navigation.map((item) => {
+                {itens.map((item) => {
                     const isActive = location.pathname === item.href;
                     const Icon = item.icon;
 
