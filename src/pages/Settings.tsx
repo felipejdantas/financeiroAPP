@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings as SettingsIcon, Palette, CreditCard } from "lucide-react";
+import { Settings as SettingsIcon, Palette, CreditCard, Users } from "lucide-react";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import { PeriodosMensaisManager } from "@/components/dashboard/PeriodosMensaisManager";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { CartoesManager } from "@/components/dashboard/CartoesManager";
 import { TelegramConnect } from "@/components/dashboard/TelegramConnect";
+import { ResponsaveisManager } from "@/components/dashboard/ResponsaveisManager";
 import { useSearchParams } from "react-router-dom";
 
 export default function Settings() {
@@ -15,6 +16,7 @@ export default function Settings() {
     const [searchParams] = useSearchParams();
     // Links "Cadastrar cartões" do Dashboard/formulário abrem o painel direto
     const [cartoesOpen, setCartoesOpen] = useState(searchParams.get("cartoes") === "1");
+    const [responsaveisOpen, setResponsaveisOpen] = useState(searchParams.get("responsaveis") === "1");
 
     useEffect(() => {
         supabase.auth.getUser().then(({ data: { user } }) => {
@@ -61,6 +63,23 @@ export default function Settings() {
                         </Button>
                     </div>
 
+                    <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-secondary/50 transition-colors">
+                        <div className="flex items-center gap-4">
+                            <div className="p-2 bg-primary/10 rounded-full">
+                                <Users className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                                <h3 className="font-medium">Responsáveis</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Cadastre os responsáveis e escolha quem aparece no dashboard
+                                </p>
+                            </div>
+                        </div>
+                        <Button variant="outline" onClick={() => setResponsaveisOpen(true)}>
+                            Gerenciar
+                        </Button>
+                    </div>
+
                     {userId && <TelegramConnect userId={userId} />}
 
                     <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-secondary/50 transition-colors">
@@ -102,6 +121,10 @@ export default function Settings() {
 
             {userId && (
                 <CartoesManager userId={userId} open={cartoesOpen} onOpenChange={setCartoesOpen} />
+            )}
+
+            {userId && (
+                <ResponsaveisManager userId={userId} open={responsaveisOpen} onOpenChange={setResponsaveisOpen} />
             )}
 
             {userId && configMesesOpen && (

@@ -17,6 +17,8 @@ import { useToast } from "@/hooks/use-toast";
 import { format, addMonths } from "date-fns";
 import { fetchAllUserRecords } from "@/utils/fetchUtils";
 import { useCartoes } from "@/hooks/use-cartoes";
+import { useResponsaveis } from "@/hooks/use-responsaveis";
+import { getNomesResponsaveis } from "@/utils/responsaveis";
 import { getCartaoPrincipal, getCartaoReferencia } from "@/utils/cartoes";
 import { propagarCategoriaParcelas } from "@/utils/parcelas";
 
@@ -79,6 +81,7 @@ const Dashboard = () => {
   const [saldoAcumulado, setSaldoAcumulado] = useState(0);
   const loadedUserIdRef = useRef<string | null>(null);
   const { cartoes, legado: cartoesLegado, carregado: cartoesCarregados } = useCartoes(userId);
+  const { responsaveis: responsaveisCadastrados } = useResponsaveis(userId);
   // Referência do "mês atual" e dos rótulos de período (antes, sempre o Santander)
   const nomeCartaoReferencia = getCartaoReferencia(cartoes)?.nome || "Santander";
   const nomeCartaoPrincipal = getCartaoPrincipal(cartoes)?.nome;
@@ -1054,6 +1057,7 @@ const Dashboard = () => {
           saldoAcumulado={saldoAcumulado}
           totalInvestido={totalInvestido}
           cartoes={cartoes}
+          responsaveis={responsaveisCadastrados}
         />
 
 
@@ -1101,7 +1105,7 @@ const Dashboard = () => {
             onSubmit={handleFormSubmit}
             despesa={editingDespesa}
             categorias={categoriasDisponiveis}
-            responsaveis={[...new Set(despesas.map(d => d.Responsavel).filter(Boolean))]}
+            responsaveis={getNomesResponsaveis(responsaveisCadastrados, despesas.map(d => d.Responsavel), editingDespesa?.Responsavel)}
             defaultResponsavel={userName}
             cartoes={cartoes}
           />

@@ -5,6 +5,8 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useResponsaveis } from "@/hooks/use-responsaveis";
+import { getNomesResponsaveis } from "@/utils/responsaveis";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Receita, RevenueTable } from "@/components/revenue/RevenueTable";
 import { RevenueForm } from "@/components/revenue/RevenueForm";
@@ -19,6 +21,7 @@ export default function Revenue() {
 
     const [formOpen, setFormOpen] = useState(false);
     const [editingReceita, setEditingReceita] = useState<Receita | null>(null);
+    const { responsaveis: responsaveisCadastrados } = useResponsaveis(userId);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [receitaToDelete, setReceitaToDelete] = useState<number | null>(null);
     const [categoryEmojis, setCategoryEmojis] = useState<Record<string, string>>({});
@@ -294,7 +297,7 @@ export default function Revenue() {
                         onSubmit={handleFormSubmit}
                         receita={editingReceita}
                         categorias={categoriasDisponiveis}
-                        responsaveis={[...new Set([...responsaveisDisponiveis, ...receitas.map(r => r.Responsavel), userName])].filter(Boolean)}
+                        responsaveis={getNomesResponsaveis(responsaveisCadastrados, [...responsaveisDisponiveis, ...receitas.map(r => r.Responsavel), userName], editingReceita?.Responsavel)}
                         defaultResponsavel={userName}
                     />
                 )}

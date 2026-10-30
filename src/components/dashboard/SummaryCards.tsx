@@ -3,6 +3,7 @@ import { Despesa } from "@/types/despesa";
 import { Wallet, CreditCard, Banknote, User, TrendingUp, Scale, ArrowUpCircle, ArrowDownCircle, PiggyBank } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Cartao, CARTOES_LEGADO, getCartaoReferencia, getCorCartao } from "@/utils/cartoes";
+import { Responsavel, getResponsaveisOcultos, isResponsavelOculto } from "@/utils/responsaveis";
 
 interface SummaryCardsProps {
   despesas: Despesa[];
@@ -13,9 +14,10 @@ interface SummaryCardsProps {
   saldoAcumulado?: number;
   totalInvestido?: number;
   cartoes?: Cartao[];
+  responsaveis?: Responsavel[];
 }
 
-export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange, activeFilter, totalReceita, saldoAcumulado, totalInvestido, cartoes = CARTOES_LEGADO }: SummaryCardsProps) => {
+export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange, activeFilter, totalReceita, saldoAcumulado, totalInvestido, cartoes = CARTOES_LEGADO, responsaveis: responsaveisCadastrados = [] }: SummaryCardsProps) => {
   const navigate = useNavigate();
   const totalPendentes = despesasPendentes.reduce((sum, d) => sum + (d.valor || 0), 0);
   const totalGeral = despesas.reduce((sum, d) => sum + d.valor, 0) + totalPendentes;
@@ -49,8 +51,12 @@ export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange,
     })
     .reduce((sum, d) => sum + d.valor, 0);
 
+  // Responsável marcado como "fora do dashboard" no cadastro não ganha card (continua nos totais gerais)
+  const ocultos = getResponsaveisOcultos(responsaveisCadastrados);
+
   // Agrupar por responsável (Geral)
-  const responsaveis = [...new Set(despesas.map((d) => (d.Responsavel || "").trim()).filter(Boolean))];
+  const responsaveis = [...new Set(despesas.map((d) => (d.Responsavel || "").trim()).filter(Boolean))]
+    .filter((nome) => !isResponsavelOculto(ocultos, nome));
   const totaisPorResponsavel = responsaveis.map((resp) => {
     const total = despesas
       .filter((d) => (d.Responsavel || "").trim() === resp)
@@ -63,7 +69,8 @@ export const SummaryCards = ({ despesas, despesasPendentes = [], onFilterChange,
     const tipo = (d.Tipo || "").trim().toLowerCase();
     return tipo === "crédito" || tipo === "credito";
   });
-  const responsaveisCredito = [...new Set(despesasCredito.map((d) => (d.Responsavel || "").trim()).filter(Boolean))];
+  const responsaveisCredito = [...new Set(despesasCredito.map((d) => (d.Responsavel || "").trim()).filter(Boolean))]
+    .filter((nome) => !isResponsavelOculto(ocultos, nome));
   const totaisPorResponsavelCredito = responsaveisCredito.map((resp) => {
     const total = despesasCredito
       .filter((d) => (d.Responsavel || "").trim() === resp)

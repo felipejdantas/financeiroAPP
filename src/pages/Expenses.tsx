@@ -14,6 +14,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { format, subDays, parseISO, startOfMonth, startOfToday, subMonths, addMonths } from "date-fns";
 import { fetchAllUserRecords } from "@/utils/fetchUtils";
 import { useCartoes } from "@/hooks/use-cartoes";
+import { useResponsaveis } from "@/hooks/use-responsaveis";
+import { getNomesResponsaveis } from "@/utils/responsaveis";
 import { getCartaoPrincipal, getCartaoReferencia, getNomesCartoes } from "@/utils/cartoes";
 import { propagarCategoriaParcelas } from "@/utils/parcelas";
 
@@ -117,6 +119,7 @@ export default function Expenses() {
     const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
     const { cartoes } = useCartoes(userId);
+    const { responsaveis: responsaveisCadastrados } = useResponsaveis(userId);
     const nomeCartaoReferencia = getCartaoReferencia(cartoes)?.nome || "Santander";
     const nomeCartaoPrincipal = getCartaoPrincipal(cartoes)?.nome;
 
@@ -903,7 +906,7 @@ export default function Expenses() {
                         onSubmit={handleFormSubmit}
                         despesa={editingDespesa}
                         categorias={categoriasDisponiveis}
-                        responsaveis={[...new Set(despesas.map(d => d.Responsavel).filter(Boolean))]}
+                        responsaveis={getNomesResponsaveis(responsaveisCadastrados, despesas.map(d => d.Responsavel), editingDespesa?.Responsavel)}
                         defaultResponsavel={userName}
                         cartoes={cartoes}
                     />
@@ -949,7 +952,7 @@ export default function Expenses() {
                     onApply={handleBulkEditApply}
                     selectedCount={selectedExpenseIds.length}
                     categorias={categoriasDisponiveis}
-                    responsaveis={[...new Set(despesas.map(d => d.Responsavel).filter(Boolean))]}
+                    responsaveis={getNomesResponsaveis(responsaveisCadastrados, despesas.map(d => d.Responsavel))}
                 />
             </div>
         </div>
