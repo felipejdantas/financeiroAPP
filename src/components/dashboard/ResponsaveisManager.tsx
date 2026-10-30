@@ -257,6 +257,7 @@ export const ResponsaveisManager = ({ userId, open, onOpenChange }: Responsaveis
           <p className="mt-4 text-xs text-muted-foreground">
             <strong>Mostrar no dashboard</strong> controla só os cards por responsável: quem está fora continua somando nos totais gerais, nos filtros e nos relatórios.
             <strong> Desativado</strong> some da lista ao lançar uma despesa ou receita. Responsável com lançamentos não pode ser excluído.
+            Nome novo lançado pelo Telegram entra aqui sozinho, fora do dashboard.
           </p>
         </SheetContent>
       </Sheet>
